@@ -253,7 +253,7 @@ struct AboutView: View {
                 Divider()
                 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Версия: 1.0.0-ios-alpha (Always in alpha lol)")
+                    Text("Версия: 1.1.0-ios-alpha (Always in alpha lol)")
                     Text("Автор: w^x (лейн, платон, а похуй как угодно)")
                     Text("Разработано с ❤️ на Свифт")
                 }
