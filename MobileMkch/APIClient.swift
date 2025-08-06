@@ -1,0 +1,512 @@
+import Foundation
+
+class APIClient: ObservableObject {
+    private let baseURL = "https://mkch.pooziqo.xyz"
+    private let apiURL = "https://mkch.pooziqo.xyz/api"
+    private let session = URLSession.shared
+    private var authKey: String = ""
+    private var passcode: String = ""
+    
+    func authenticate(authKey: String, completion: @escaping (Error?) -> Void) {
+        self.authKey = authKey
+        
+        let url = URL(string: "\(baseURL)/key/auth/")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        session.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    completion(error)
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse,
+                      httpResponse.statusCode == 200 else {
+                    completion(APIError(message: "Ошибка получения формы аутентификации", code: 0))
+                    return
+                }
+                
+                guard let data = data,
+                      let html = String(data: data, encoding: .utf8) else {
+                    completion(APIError(message: "Ошибка чтения формы аутентификации", code: 0))
+                    return
+                }
+                
+                let csrfToken = self.extractCSRFToken(from: html)
+                
+                guard !csrfToken.isEmpty else {
+                    completion(APIError(message: "Не удалось извлечь CSRF токен", code: 0))
+                    return
+                }
+                
+                var formData = URLComponents()
+                formData.queryItems = [
+                    URLQueryItem(name: "csrfmiddlewaretoken", value: csrfToken),
+                    URLQueryItem(name: "key", value: authKey)
+                ]
+                
+                var postRequest = URLRequest(url: url)
+                postRequest.httpMethod = "POST"
+                postRequest.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+                postRequest.setValue("\(self.baseURL)/key/auth/", forHTTPHeaderField: "Referer")
+                postRequest.httpBody = formData.query?.data(using: .utf8)
+                
+                self.session.dataTask(with: postRequest) { _, postResponse, postError in
+                    DispatchQueue.main.async {
+                        if let postError = postError {
+                            completion(postError)
+                            return
+                        }
+                        
+                        guard let postHttpResponse = postResponse as? HTTPURLResponse,
+                              (postHttpResponse.statusCode == 200 || postHttpResponse.statusCode == 302) else {
+                            completion(APIError(message: "Ошибка аутентификации", code: 0))
+                            return
+                        }
+                        
+                        completion(nil)
+                    }
+                }.resume()
+            }
+        }.resume()
+    }
+    
+    func loginWithPasscode(passcode: String, completion: @escaping (Error?) -> Void) {
+        self.passcode = passcode
+        
+        let url = URL(string: "\(baseURL)/passcode/enter/")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        session.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    completion(error)
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse,
+                      httpResponse.statusCode == 200 else {
+                    completion(APIError(message: "Ошибка получения формы passcode", code: 0))
+                    return
+                }
+                
+                guard let data = data,
+                      let html = String(data: data, encoding: .utf8) else {
+                    completion(APIError(message: "Ошибка чтения формы passcode", code: 0))
+                    return
+                }
+                
+                let csrfToken = self.extractCSRFToken(from: html)
+                
+                guard !csrfToken.isEmpty else {
+                    completion(APIError(message: "Не удалось извлечь CSRF токен для passcode", code: 0))
+                    return
+                }
+                
+                var formData = URLComponents()
+                formData.queryItems = [
+                    URLQueryItem(name: "csrfmiddlewaretoken", value: csrfToken),
+                    URLQueryItem(name: "passcode", value: passcode)
+                ]
+                
+                var postRequest = URLRequest(url: url)
+                postRequest.httpMethod = "POST"
+                postRequest.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+                postRequest.setValue("\(self.baseURL)/passcode/enter/", forHTTPHeaderField: "Referer")
+                postRequest.httpBody = formData.query?.data(using: .utf8)
+                
+                self.session.dataTask(with: postRequest) { _, postResponse, postError in
+                    DispatchQueue.main.async {
+                        if let postError = postError {
+                            completion(postError)
+                            return
+                        }
+                        
+                        guard let postHttpResponse = postResponse as? HTTPURLResponse,
+                              (postHttpResponse.statusCode == 200 || postHttpResponse.statusCode == 302) else {
+                            completion(APIError(message: "Ошибка входа с passcode", code: 0))
+                            return
+                        }
+                        
+                        completion(nil)
+                    }
+                }.resume()
+            }
+        }.resume()
+    }
+    
+    func getBoards(completion: @escaping (Result<[Board], Error>) -> Void) {
+        if let cachedBoards = Cache.shared.getBoards() {
+            completion(.success(cachedBoards))
+            return
+        }
+        
+        let url = URL(string: "\(apiURL)/boards/")!
+        
+        session.dataTask(with: url) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse,
+                      httpResponse.statusCode == 200 else {
+                    completion(.failure(APIError(message: "Ошибка получения досок", code: 0)))
+                    return
+                }
+                
+                guard let data = data else {
+                    completion(.failure(APIError(message: "Нет данных", code: 0)))
+                    return
+                }
+                
+                do {
+                    let boards = try JSONDecoder().decode([Board].self, from: data)
+                    Cache.shared.setBoards(boards)
+                    completion(.success(boards))
+                } catch {
+                    completion(.failure(error))
+                }
+            }
+        }.resume()
+    }
+    
+    func getThreads(forBoard boardCode: String, completion: @escaping (Result<[Thread], Error>) -> Void) {
+        if let cachedThreads = Cache.shared.getThreads(forBoard: boardCode) {
+            completion(.success(cachedThreads))
+            return
+        }
+        
+        let url = URL(string: "\(apiURL)/board/\(boardCode)")!
+        
+        session.dataTask(with: url) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse,
+                      httpResponse.statusCode == 200 else {
+                    completion(.failure(APIError(message: "Ошибка получения тредов", code: 0)))
+                    return
+                }
+                
+                guard let data = data else {
+                    completion(.failure(APIError(message: "Нет данных", code: 0)))
+                    return
+                }
+                
+                do {
+                    let threads = try JSONDecoder().decode([Thread].self, from: data)
+                    Cache.shared.setThreads(threads, forBoard: boardCode)
+                    completion(.success(threads))
+                } catch {
+                    completion(.failure(error))
+                }
+            }
+        }.resume()
+    }
+    
+    func getThreadDetail(boardCode: String, threadId: Int, completion: @escaping (Result<ThreadDetail, Error>) -> Void) {
+        if let cachedThread = Cache.shared.getThreadDetail(forThreadId: threadId) {
+            completion(.success(cachedThread))
+            return
+        }
+        
+        let url = URL(string: "\(apiURL)/board/\(boardCode)/thread/\(threadId)")!
+        
+        session.dataTask(with: url) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse,
+                      httpResponse.statusCode == 200 else {
+                    completion(.failure(APIError(message: "Ошибка получения треда", code: 0)))
+                    return
+                }
+                
+                guard let data = data else {
+                    completion(.failure(APIError(message: "Нет данных", code: 0)))
+                    return
+                }
+                
+                do {
+                    let thread = try JSONDecoder().decode(ThreadDetail.self, from: data)
+                    Cache.shared.setThreadDetail(thread, forThreadId: threadId)
+                    completion(.success(thread))
+                } catch {
+                    completion(.failure(error))
+                }
+            }
+        }.resume()
+    }
+    
+    func getComments(boardCode: String, threadId: Int, completion: @escaping (Result<[Comment], Error>) -> Void) {
+        if let cachedComments = Cache.shared.getComments(forThreadId: threadId) {
+            completion(.success(cachedComments))
+            return
+        }
+        
+        let url = URL(string: "\(apiURL)/board/\(boardCode)/thread/\(threadId)/comments")!
+        
+        session.dataTask(with: url) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse,
+                      httpResponse.statusCode == 200 else {
+                    completion(.failure(APIError(message: "Ошибка получения комментариев", code: 0)))
+                    return
+                }
+                
+                guard let data = data else {
+                    completion(.failure(APIError(message: "Нет данных", code: 0)))
+                    return
+                }
+                
+                do {
+                    let comments = try JSONDecoder().decode([Comment].self, from: data)
+                    Cache.shared.setComments(comments, forThreadId: threadId)
+                    completion(.success(comments))
+                } catch {
+                    completion(.failure(error))
+                }
+            }
+        }.resume()
+    }
+    
+    func getFullThread(boardCode: String, threadId: Int, completion: @escaping (Result<(ThreadDetail, [Comment]), Error>) -> Void) {
+        let group = DispatchGroup()
+        var threadDetail: ThreadDetail?
+        var comments: [Comment]?
+        var threadError: Error?
+        var commentsError: Error?
+        
+        group.enter()
+        getThreadDetail(boardCode: boardCode, threadId: threadId) { result in
+            switch result {
+            case .success(let detail):
+                threadDetail = detail
+            case .failure(let error):
+                threadError = error
+            }
+            group.leave()
+        }
+        
+        group.enter()
+        getComments(boardCode: boardCode, threadId: threadId) { result in
+            switch result {
+            case .success(let commentList):
+                comments = commentList
+            case .failure(let error):
+                commentsError = error
+            }
+            group.leave()
+        }
+        
+        group.notify(queue: .main) {
+            if let threadError = threadError {
+                completion(.failure(threadError))
+                return
+            }
+            
+            if let commentsError = commentsError {
+                completion(.failure(commentsError))
+                return
+            }
+            
+            guard let detail = threadDetail, let commentList = comments else {
+                completion(.failure(APIError(message: "Не удалось загрузить данные", code: 0)))
+                return
+            }
+            
+            completion(.success((detail, commentList)))
+        }
+    }
+    
+    func createThread(boardCode: String, title: String, text: String, passcode: String, completion: @escaping (Error?) -> Void) {
+        if !passcode.isEmpty {
+            loginWithPasscode(passcode: passcode) { error in
+                if let error = error {
+                    completion(error)
+                    return
+                }
+                self.performCreateThread(boardCode: boardCode, title: title, text: text, completion: completion)
+            }
+        } else {
+            performCreateThread(boardCode: boardCode, title: title, text: text, completion: completion)
+        }
+    }
+    
+    private func performCreateThread(boardCode: String, title: String, text: String, completion: @escaping (Error?) -> Void) {
+        let formURL = "\(baseURL)/boards/board/\(boardCode)/new"
+        let url = URL(string: formURL)!
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        session.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    completion(error)
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse,
+                      httpResponse.statusCode == 200 else {
+                    completion(APIError(message: "Ошибка получения формы", code: 0))
+                    return
+                }
+                
+                guard let data = data,
+                      let html = String(data: data, encoding: .utf8) else {
+                    completion(APIError(message: "Ошибка чтения формы", code: 0))
+                    return
+                }
+                
+                let csrfToken = self.extractCSRFToken(from: html)
+                
+                guard !csrfToken.isEmpty else {
+                    completion(APIError(message: "Не удалось извлечь CSRF токен", code: 0))
+                    return
+                }
+                
+                var formData = URLComponents()
+                formData.queryItems = [
+                    URLQueryItem(name: "csrfmiddlewaretoken", value: csrfToken),
+                    URLQueryItem(name: "title", value: title),
+                    URLQueryItem(name: "text", value: text)
+                ]
+                
+                var postRequest = URLRequest(url: url)
+                postRequest.httpMethod = "POST"
+                postRequest.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+                postRequest.setValue(formURL, forHTTPHeaderField: "Referer")
+                postRequest.httpBody = formData.query?.data(using: .utf8)
+                
+                self.session.dataTask(with: postRequest) { _, postResponse, postError in
+                    DispatchQueue.main.async {
+                        if let postError = postError {
+                            completion(postError)
+                            return
+                        }
+                        
+                        guard let postHttpResponse = postResponse as? HTTPURLResponse,
+                              (postHttpResponse.statusCode == 200 || postHttpResponse.statusCode == 302) else {
+                            completion(APIError(message: "Ошибка создания треда", code: 0))
+                            return
+                        }
+                        
+                        Cache.shared.delete("threads_\(boardCode)")
+                        completion(nil)
+                    }
+                }.resume()
+            }
+        }.resume()
+    }
+    
+    func addComment(boardCode: String, threadId: Int, text: String, passcode: String, completion: @escaping (Error?) -> Void) {
+        if !passcode.isEmpty {
+            loginWithPasscode(passcode: passcode) { error in
+                if let error = error {
+                    completion(error)
+                    return
+                }
+                self.performAddComment(boardCode: boardCode, threadId: threadId, text: text, completion: completion)
+            }
+        } else {
+            performAddComment(boardCode: boardCode, threadId: threadId, text: text, completion: completion)
+        }
+    }
+    
+    private func performAddComment(boardCode: String, threadId: Int, text: String, completion: @escaping (Error?) -> Void) {
+        let formURL = "\(baseURL)/boards/board/\(boardCode)/thread/\(threadId)/comment"
+        let url = URL(string: formURL)!
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        
+        session.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    completion(error)
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse,
+                      httpResponse.statusCode == 200 else {
+                    completion(APIError(message: "Ошибка получения формы", code: 0))
+                    return
+                }
+                
+                guard let data = data,
+                      let html = String(data: data, encoding: .utf8) else {
+                    completion(APIError(message: "Ошибка чтения формы", code: 0))
+                    return
+                }
+                
+                let csrfToken = self.extractCSRFToken(from: html)
+                
+                guard !csrfToken.isEmpty else {
+                    completion(APIError(message: "Не удалось извлечь CSRF токен", code: 0))
+                    return
+                }
+                
+                var formData = URLComponents()
+                formData.queryItems = [
+                    URLQueryItem(name: "csrfmiddlewaretoken", value: csrfToken),
+                    URLQueryItem(name: "text", value: text)
+                ]
+                
+                var postRequest = URLRequest(url: url)
+                postRequest.httpMethod = "POST"
+                postRequest.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+                postRequest.setValue(formURL, forHTTPHeaderField: "Referer")
+                postRequest.httpBody = formData.query?.data(using: .utf8)
+                
+                self.session.dataTask(with: postRequest) { _, postResponse, postError in
+                    DispatchQueue.main.async {
+                        if let postError = postError {
+                            completion(postError)
+                            return
+                        }
+                        
+                        guard let postHttpResponse = postResponse as? HTTPURLResponse,
+                              (postHttpResponse.statusCode == 200 || postHttpResponse.statusCode == 302) else {
+                            completion(APIError(message: "Ошибка добавления комментария", code: 0))
+                            return
+                        }
+                        
+                        Cache.shared.delete("comments_\(threadId)")
+                        completion(nil)
+                    }
+                }.resume()
+            }
+        }.resume()
+    }
+    
+    private func extractCSRFToken(from html: String) -> String {
+        let pattern = #"name=['"]csrfmiddlewaretoken['"]\s+value=['"]([^'"]+)['"]"#
+        let regex = try? NSRegularExpression(pattern: pattern)
+        
+        guard let match = regex?.firstMatch(in: html, range: NSRange(html.startIndex..., in: html)) else {
+            return ""
+        }
+        
+        guard let range = Range(match.range(at: 1), in: html) else {
+            return ""
+        }
+        
+        return String(html[range])
+    }
+} 
