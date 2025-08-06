@@ -3,7 +3,7 @@
 Мобильный клиент для борды mkch.pooziqo.xyz для iOS
 
 ## Скриншоты
-![screenshots](https://git.fuckyougoogle.xyz/MKFun/MobileMkch-iOS/raw/branch/main/screenshots/screenshot.png)
+![screenshots](https://git.fuckyougoogle.xyz/MKFun/MobileMkch-iOS/raw/branch/main/screenshot/screenshot.png)
 
 ## Возможности
 
