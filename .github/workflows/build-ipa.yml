@@ -44,6 +44,7 @@ jobs:
       run: |
         zip -r MobileMkch.ipa Payload/
         ls -la MobileMkch.ipa
+        unzip -l MobileMkch.ipa
         
     - name: Upload IPA
       uses: actions/upload-artifact@v4
