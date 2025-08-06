@@ -20,6 +20,11 @@ jobs:
       with:
         xcode-version: '15.0'
         
+    - name: List Files
+      run: |
+        ls -la
+        find . -name "*.xcodeproj" -type d
+        
     - name: Build Archive
       run: |
         xcodebuild -project MobileMkch.xcodeproj \
@@ -27,7 +32,8 @@ jobs:
           -configuration Release \
           -destination 'generic/platform=iOS' \
           -archivePath MobileMkch.xcarchive \
-          archive
+          archive \
+          -verbose
           
     - name: Create Payload
       run: |
