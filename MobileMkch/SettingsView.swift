@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import Darwin
 
 struct SettingsView: View {
     @EnvironmentObject var settings: Settings
@@ -12,6 +13,8 @@ struct SettingsView: View {
     @State private var testPasscodeResult: String?
     @State private var isTestingKey = false
     @State private var isTestingPasscode = false
+    @State private var debugTapCount = 0
+    @State private var showingDebugMenu = false
     
     var body: some View {
         NavigationView {
@@ -140,6 +143,24 @@ struct SettingsView: View {
                         showingInfo = true
                     }
                 }
+                
+                Section("Информация об устройстве") {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Устройство: \(getDeviceModel())")
+                        Text("Система: \(UIDevice.current.systemName) \(UIDevice.current.systemVersion)")
+                        Text("Тип: \(UIDevice.current.name.isEmpty ? "Не удалось определить, увы" : UIDevice.current.name)")
+                        Text("Идентификатор: \(UIDevice.current.identifierForVendor?.uuidString ?? "Неизвестно")")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .onTapGesture {
+                        debugTapCount += 1
+                        if debugTapCount >= 5 {
+                            showingDebugMenu = true
+                            debugTapCount = 0
+                        }
+                    }
+                }
             }
             .navigationTitle("Настройки")
             .navigationBarTitleDisplayMode(.inline)
@@ -152,6 +173,9 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showingAbout) {
                 AboutView()
+            }
+            .sheet(isPresented: $showingDebugMenu) {
+                DebugMenuView()
             }
             .alert("Информация о НЕОЖИДАНЫХ проблемах", isPresented: $showingInfo) {
                 Button("Закрыть") { }
@@ -198,6 +222,18 @@ struct SettingsView: View {
             }
         }
     }
+    
+    private func getDeviceModel() -> String {
+        var systemInfo = utsname()
+        uname(&systemInfo)
+        let machineMirror = Mirror(reflecting: systemInfo.machine)
+        let identifier = machineMirror.children.reduce("") { identifier, element in
+            guard let value = element.value as? Int8, value != 0 else { return identifier }
+            return identifier + String(UnicodeScalar(UInt8(value)))
+        }
+        
+        return identifier
+    }
 }
 
 struct AboutView: View {
@@ -232,6 +268,39 @@ struct AboutView: View {
             }
             .padding()
             .navigationTitle("Об аппке")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+}
+
+struct DebugMenuView: View {
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                Text("Debug Menu")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                
+                VStack(spacing: 15) {
+                    Button("Тест краша") {
+                        CrashHandler.shared.triggerTestCrash()
+                        dismiss()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .foregroundColor(.red)
+                }
+                
+                Spacer()
+                
+                Button("Закрыть") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding()
+            .navigationTitle("Debug")
             .navigationBarTitleDisplayMode(.inline)
         }
     }

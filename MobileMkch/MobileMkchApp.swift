@@ -11,15 +11,22 @@ import SwiftUI
 struct MobileMkchApp: App {
     @StateObject private var settings = Settings()
     @StateObject private var apiClient = APIClient()
+    @StateObject private var crashHandler = CrashHandler.shared
     
     var body: some Scene {
         WindowGroup {
-            NavigationView {
-                BoardsView()
-                    .environmentObject(settings)
-                    .environmentObject(apiClient)
+            Group {
+                if crashHandler.hasCrashed {
+                    CrashScreen()
+                } else {
+                    NavigationView {
+                        BoardsView()
+                            .environmentObject(settings)
+                            .environmentObject(apiClient)
+                    }
+                    .preferredColorScheme(settings.theme == "dark" ? .dark : .light)
+                }
             }
-            .preferredColorScheme(settings.theme == "dark" ? .dark : .light)
         }
     }
 }
