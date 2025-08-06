@@ -9,6 +9,8 @@ class Settings: ObservableObject {
     @Published var pageSize: Int = 10
     @Published var passcode: String = ""
     @Published var key: String = ""
+    @Published var notificationsEnabled: Bool = false
+    @Published var notificationInterval: Int = 300
     
     private let userDefaults = UserDefaults.standard
     private let settingsKey = "MobileMkchSettings"
@@ -28,6 +30,8 @@ class Settings: ObservableObject {
             self.pageSize = settings.pageSize
             self.passcode = settings.passcode
             self.key = settings.key
+            self.notificationsEnabled = settings.notificationsEnabled
+            self.notificationInterval = settings.notificationInterval
         }
     }
     
@@ -40,7 +44,9 @@ class Settings: ObservableObject {
             compactMode: compactMode,
             pageSize: pageSize,
             passcode: passcode,
-            key: key
+            key: key,
+            notificationsEnabled: notificationsEnabled,
+            notificationInterval: notificationInterval
         )
         
         if let data = try? JSONEncoder().encode(settingsData) {
@@ -57,6 +63,8 @@ class Settings: ObservableObject {
         pageSize = 10
         passcode = ""
         key = ""
+        notificationsEnabled = false
+        notificationInterval = 300
         saveSettings()
     }
 }
@@ -70,4 +78,6 @@ struct SettingsData: Codable {
     let pageSize: Int
     let passcode: String
     let key: String
+    let notificationsEnabled: Bool
+    let notificationInterval: Int
 } 

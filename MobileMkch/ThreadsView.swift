@@ -4,6 +4,7 @@ struct ThreadsView: View {
     let board: Board
     @EnvironmentObject var settings: Settings
     @EnvironmentObject var apiClient: APIClient
+    @EnvironmentObject var notificationManager: NotificationManager
     @State private var threads: [Thread] = []
     @State private var isLoading = false
     @State private var errorMessage: String?

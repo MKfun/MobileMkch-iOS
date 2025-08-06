@@ -35,7 +35,8 @@ struct BoardsView: View {
                 ForEach(boards) { board in
                     NavigationLink(destination: ThreadsView(board: board)
                         .environmentObject(settings)
-                        .environmentObject(apiClient)) {
+                        .environmentObject(apiClient)
+                        .environmentObject(NotificationManager.shared)) {
                         BoardRow(board: board)
                     }
                 }

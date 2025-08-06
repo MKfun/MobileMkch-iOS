@@ -509,4 +509,36 @@ class APIClient: ObservableObject {
         
         return String(html[range])
     }
+    
+    func checkNewThreads(forBoard boardCode: String, lastKnownThreadId: Int, completion: @escaping (Result<[Thread], Error>) -> Void) {
+        let url = URL(string: "\(apiURL)/board/\(boardCode)")!
+        
+        session.dataTask(with: url) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse,
+                      httpResponse.statusCode == 200 else {
+                    completion(.failure(APIError(message: "Ошибка получения тредов", code: 0)))
+                    return
+                }
+                
+                guard let data = data else {
+                    completion(.failure(APIError(message: "Нет данных", code: 0)))
+                    return
+                }
+                
+                do {
+                    let threads = try JSONDecoder().decode([Thread].self, from: data)
+                    let newThreads = threads.filter { $0.id > lastKnownThreadId }
+                    completion(.success(newThreads))
+                } catch {
+                    completion(.failure(error))
+                }
+            }
+        }.resume()
+    }
 } 

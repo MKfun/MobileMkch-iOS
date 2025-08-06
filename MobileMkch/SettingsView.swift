@@ -107,6 +107,13 @@ struct SettingsView: View {
                     }
                 }
                 
+                Section("Уведомления") {
+                    NavigationLink("Настройки уведомлений") {
+                        NotificationSettingsView()
+                            .environmentObject(apiClient)
+                    }
+                }
+                
                 Section("Управление кэшем") {
                     Button("Очистить кэш досок") {
                         Cache.shared.delete("boards")
@@ -176,6 +183,7 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showingDebugMenu) {
                 DebugMenuView()
+                    .environmentObject(NotificationManager.shared)
             }
             .alert("Информация о НЕОЖИДАНЫХ проблемах", isPresented: $showingInfo) {
                 Button("Закрыть") { }
@@ -275,6 +283,7 @@ struct AboutView: View {
 
 struct DebugMenuView: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var notificationManager: NotificationManager
     
     var body: some View {
         NavigationView {
@@ -290,6 +299,12 @@ struct DebugMenuView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .foregroundColor(.red)
+                    
+                    Button("Тест уведомления") {
+                        notificationManager.scheduleTestNotification()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .foregroundColor(.blue)
                 }
                 
                 Spacer()

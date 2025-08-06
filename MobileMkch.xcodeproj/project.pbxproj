@@ -10,9 +10,22 @@
 		1D8926E92E43CE4C00C5590A /* MobileMkch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MobileMkch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		1DBE8B722E4414C80052ED1B /* Exceptions for "MobileMkch" folder in "MobileMkch" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 1D8926E82E43CE4C00C5590A /* MobileMkch */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		1D8926EB2E43CE4C00C5590A /* MobileMkch */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				1DBE8B722E4414C80052ED1B /* Exceptions for "MobileMkch" folder in "MobileMkch" target */,
+			);
 			path = MobileMkch;
 			sourceTree = "<group>";
 		};
@@ -255,6 +268,7 @@
 				DEVELOPMENT_TEAM = 9U88M9D595;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MobileMkch/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = MobileMkch;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -290,6 +304,7 @@
 				DEVELOPMENT_TEAM = 9U88M9D595;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MobileMkch/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = MobileMkch;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.social-networking";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
