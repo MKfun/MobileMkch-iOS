@@ -22,7 +22,7 @@ jobs:
         
     - name: Build Archive
       run: |
-        xcodebuild -project MobileMkch/MobileMkch.xcodeproj \
+        xcodebuild -project MobileMkch.xcodeproj \
           -scheme MobileMkch \
           -configuration Release \
           -destination 'generic/platform=iOS' \
