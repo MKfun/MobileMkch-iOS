@@ -25,6 +25,17 @@ jobs:
         ls -la
         find . -name "*.xcodeproj" -type d
         
+    - name: Clean Project
+      run: |
+        rm -rf ~/Library/Developer/Xcode/DerivedData
+        xcodebuild clean -project MobileMkch.xcodeproj -scheme MobileMkch
+        
+    - name: Fix Project
+      run: |
+        cd MobileMkch.xcodeproj
+        find . -name "*.pbxproj" -exec sed -i '' 's/isa = ".*";/isa = "PBXFileReference";/g' {} \;
+        cd ..
+        
     - name: Build Archive
       run: |
         xcodebuild -project MobileMkch.xcodeproj \
