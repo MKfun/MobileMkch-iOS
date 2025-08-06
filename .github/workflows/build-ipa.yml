@@ -35,12 +35,15 @@ jobs:
           
     - name: Create Payload
       run: |
+        ls -la MobileMkch.xcarchive/Products/Applications/
         mkdir -p Payload
         cp -r MobileMkch.xcarchive/Products/Applications/MobileMkch.app Payload/
+        ls -la Payload/
         
     - name: Create IPA
       run: |
         zip -r MobileMkch.ipa Payload/
+        ls -la MobileMkch.ipa
         
     - name: Upload IPA
       uses: actions/upload-artifact@v4
