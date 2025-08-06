@@ -18,23 +18,7 @@ jobs:
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
-        xcode-version: '15.0'
-        
-    - name: List Files
-      run: |
-        ls -la
-        find . -name "*.xcodeproj" -type d
-        
-    - name: Clean Project
-      run: |
-        rm -rf ~/Library/Developer/Xcode/DerivedData
-        xcodebuild clean -project MobileMkch.xcodeproj -scheme MobileMkch
-        
-    - name: Fix Project
-      run: |
-        cd MobileMkch.xcodeproj
-        find . -name "*.pbxproj" -exec sed -i '' 's/isa = ".*";/isa = "PBXFileReference";/g' {} \;
-        cd ..
+        xcode-version: '16.2'
         
     - name: Build Archive
       run: |
