@@ -71,6 +71,9 @@ struct ThreadDetailView: View {
             }
             .padding()
         }
+        .refreshable {
+            loadThreadDetail()
+        }
         .navigationTitle("#\(thread.id)")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

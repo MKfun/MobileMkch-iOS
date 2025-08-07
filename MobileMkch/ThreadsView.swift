@@ -53,6 +53,9 @@ struct ThreadsView: View {
                             }
                         }
                     }
+                    .refreshable {
+                        loadThreads()
+                    }
                     
                     if settings.enablePagination && totalPages > 1 {
                         HStack {

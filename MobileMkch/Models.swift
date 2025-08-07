@@ -1,5 +1,9 @@
 import Foundation
 
+private enum DateFormatterCache {
+    static let iso8601 = ISO8601DateFormatter()
+}
+
 struct Board: Codable, Identifiable {
     let code: String
     let description: String
@@ -18,8 +22,7 @@ struct Thread: Codable, Identifiable {
     let files: [String]
     
     var creationDate: Date {
-        let formatter = ISO8601DateFormatter()
-        return formatter.date(from: creation) ?? Date()
+        return DateFormatterCache.iso8601.date(from: creation) ?? Date()
     }
     
     var ratingValue: Int {
@@ -40,8 +43,7 @@ struct ThreadDetail: Codable, Identifiable {
     let files: [String]
     
     var creationDate: Date {
-        let formatter = ISO8601DateFormatter()
-        return formatter.date(from: creation) ?? Date()
+        return DateFormatterCache.iso8601.date(from: creation) ?? Date()
     }
 }
 
@@ -52,8 +54,7 @@ struct Comment: Codable, Identifiable {
     let files: [String]
     
     var creationDate: Date {
-        let formatter = ISO8601DateFormatter()
-        return formatter.date(from: creation) ?? Date()
+        return DateFormatterCache.iso8601.date(from: creation) ?? Date()
     }
     
     var formattedText: String {

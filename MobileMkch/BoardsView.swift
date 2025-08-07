@@ -44,6 +44,9 @@ struct BoardsView: View {
             }
             .navigationTitle("Доски mkch")
             .navigationBarTitleDisplayMode(.large)
+            .refreshable {
+                loadBoards()
+            }
             .onAppear {
                 if boards.isEmpty {
                     loadBoards()

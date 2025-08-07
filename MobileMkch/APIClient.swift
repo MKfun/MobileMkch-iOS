@@ -3,7 +3,17 @@ import Foundation
 class APIClient: ObservableObject {
     private let baseURL = "https://mkch.pooziqo.xyz"
     private let apiURL = "https://mkch.pooziqo.xyz/api"
-    private let session = URLSession.shared
+    private lazy var session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 20
+        config.timeoutIntervalForResource = 40
+        config.httpAdditionalHeaders = [
+            "Accept": "application/json",
+            "Accept-Language": Locale.preferredLanguages.first ?? "ru-RU",
+            "User-Agent": self.userAgent
+        ]
+        return URLSession(configuration: config)
+    }()
     private var authKey: String = ""
     private var passcode: String = ""
     private let userAgent = "MobileMkch/2.1.0-ios-alpha"
