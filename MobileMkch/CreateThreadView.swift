@@ -11,79 +11,143 @@ struct CreateThreadView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showingSuccess = false
+    @FocusState private var titleFocused: Bool
+    @FocusState private var textFocused: Bool
     
     var body: some View {
         NavigationView {
-            Form {
-                Section {
-                    TextField("Заголовок треда", text: $title)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                    
-                    TextField("Текст треда", text: $text)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .frame(minHeight: 100)
-                }
-                .ignoresSafeArea(.keyboard, edges: .bottom)
-                
-                Section {
-                    if !settings.passcode.isEmpty {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text("Passcode настроен")
-                                .foregroundColor(.green)
-                        }
-                    } else {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.orange)
-                            VStack(alignment: .leading) {
-                                Text("Passcode не настроен")
-                                    .foregroundColor(.orange)
-                                Text("Постинг может быть ограничен")
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Заголовок")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Text("\(title.count)")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
+                            
+                            TextField("Введите заголовок треда", text: $title)
+                                .focused($titleFocused)
+                                .padding(16)
+                                .background(Color(.secondarySystemBackground))
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(titleFocused ? Color.accentColor : Color.clear, lineWidth: 2)
+                                )
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Содержание")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Text("\(text.count)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            TextEditor(text: $text)
+                                .focused($textFocused)
+                                .frame(minHeight: 140)
+                                .padding(12)
+                                .background(Color(.secondarySystemBackground))
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(textFocused ? Color.accentColor : Color.clear, lineWidth: 2)
+                                )
+                                .overlay(
+                                    Group {
+                                        if text.isEmpty {
+                                            HStack {
+                                                VStack {
+                                                    Text("Напишите содержание треда...")
+                                                        .foregroundColor(.secondary)
+                                                        .padding(.top, 20)
+                                                        .padding(.leading, 16)
+                                                    Spacer()
+                                                }
+                                                Spacer()
+                                            }
+                                        }
+                                    }
+                                )
+                        }
+                        
+                        HStack(spacing: 8) {
+                            Image(systemName: settings.passcode.isEmpty ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                                .foregroundColor(settings.passcode.isEmpty ? .orange : .green)
+                            
+                            Text(settings.passcode.isEmpty ? "Passcode не настроен" : "Passcode настроен")
+                                .font(.caption)
+                                .foregroundColor(settings.passcode.isEmpty ? .orange : .green)
+                            
+                            Spacer()
+                        }
+                        .padding(.horizontal, 4)
+                        
+                        if let error = errorMessage {
+                            HStack {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.red)
+                                Text(error)
+                                    .font(.caption)
+                                    .foregroundColor(.red)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 4)
                         }
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 20)
                 }
                 
-                if let error = errorMessage {
-                    Section {
-                        Text(error)
-                            .foregroundColor(.red)
+                VStack(spacing: 12) {
+                    Button(action: createThread) {
+                        HStack {
+                            if isLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(0.8)
+                            } else {
+                                Image(systemName: "plus.circle.fill")
+                            }
+                            Text(isLoading ? "Создание..." : "Создать тред")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(title.isEmpty || text.isEmpty || isLoading ? Color.gray : Color.accentColor)
+                        .foregroundColor(.white)
+                        .cornerRadius(25)
+                        .animation(.easeInOut(duration: 0.2), value: title.isEmpty || text.isEmpty)
                     }
+                    .disabled(title.isEmpty || text.isEmpty || isLoading)
+                    
+                    Button("Отмена") {
+                        dismiss()
+                    }
+                    .foregroundColor(.secondary)
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
             }
-            .navigationTitle("Создать тред /\(boardCode)/")
+            .navigationTitle("/\(boardCode)/")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(
-                leading: Button("Отмена") {
-                    dismiss()
-                },
-                trailing: Button("Создать") {
-                    createThread()
-                }
-                .disabled(title.isEmpty || text.isEmpty || isLoading)
-            )
-            .overlay {
-                if isLoading {
-                    VStack {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle())
-                        Text("Создание треда...")
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color(.systemBackground))
-                }
+            .onAppear {
+                titleFocused = true
             }
-            .alert("Тред создан", isPresented: $showingSuccess) {
+            .alert("Успешно!", isPresented: $showingSuccess) {
                 Button("OK") {
                     dismiss()
                 }
             } message: {
-                Text("Тред успешно создан")
+                Text("Тред создан")
             }
         }
     }
