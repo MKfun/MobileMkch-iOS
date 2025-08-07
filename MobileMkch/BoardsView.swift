@@ -6,10 +6,10 @@ struct BoardsView: View {
     @State private var boards: [Board] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
-    @State private var showingSettings = false
     
     var body: some View {
-        List {
+        NavigationView {
+            List {
             if isLoading {
                 HStack {
                     ProgressView()
@@ -41,24 +41,12 @@ struct BoardsView: View {
                     }
                 }
             }
-        }
-        .navigationTitle("Доски mkch")
-        .onAppear {
-            if boards.isEmpty {
-                loadBoards()
             }
-        }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
-                .environmentObject(settings)
-                .environmentObject(apiClient)
-        }
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: {
-                    showingSettings = true
-                }) {
-                    Image(systemName: "gearshape")
+            .navigationTitle("Доски mkch")
+            .navigationBarTitleDisplayMode(.large)
+            .onAppear {
+                if boards.isEmpty {
+                    loadBoards()
                 }
             }
         }

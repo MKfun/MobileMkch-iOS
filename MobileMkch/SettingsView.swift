@@ -5,7 +5,6 @@ import Darwin
 struct SettingsView: View {
     @EnvironmentObject var settings: Settings
     @EnvironmentObject var apiClient: APIClient
-    @Environment(\.dismiss) private var dismiss
     
     @State private var showingAbout = false
     @State private var showingInfo = false
@@ -15,60 +14,122 @@ struct SettingsView: View {
     @State private var isTestingPasscode = false
     @State private var debugTapCount = 0
     @State private var showingDebugMenu = false
+    @State private var showingUnstableWarning = false
     
     var body: some View {
         NavigationView {
             Form {
                 Section("Внешний вид") {
-                    Picker("Тема", selection: $settings.theme) {
-                        Text("Темная").tag("dark")
-                        Text("Светлая").tag("light")
+                    HStack {
+                        Image(systemName: "moon.fill")
+                            .foregroundColor(.purple)
+                            .frame(width: 24)
+                        Text("Тема")
+                        Spacer()
+                        Picker("", selection: $settings.theme) {
+                            Text("Темная").tag("dark")
+                            Text("Светлая").tag("light")
+                        }
+                        .pickerStyle(SegmentedPickerStyle())
+                        .frame(width: 120)
                     }
                     .onReceive(Just(settings.theme)) { _ in
                         settings.saveSettings()
                     }
                     
-                    Toggle("Авторефреш", isOn: $settings.autoRefresh)
-                        .onReceive(Just(settings.autoRefresh)) { _ in
-                            settings.saveSettings()
-                        }
+                    HStack {
+                        Image(systemName: "arrow.clockwise")
+                            .foregroundColor(.green)
+                            .frame(width: 24)
+                        Toggle("Авторефреш", isOn: $settings.autoRefresh)
+                    }
+                    .onReceive(Just(settings.autoRefresh)) { _ in
+                        settings.saveSettings()
+                    }
                     
-                    Toggle("Показывать файлы", isOn: $settings.showFiles)
-                        .onReceive(Just(settings.showFiles)) { _ in
-                            settings.saveSettings()
-                        }
+                    HStack {
+                        Image(systemName: "paperclip")
+                            .foregroundColor(.blue)
+                            .frame(width: 24)
+                        Toggle("Показывать файлы", isOn: $settings.showFiles)
+                    }
+                    .onReceive(Just(settings.showFiles)) { _ in
+                        settings.saveSettings()
+                    }
                     
-                    Toggle("Компактный режим", isOn: $settings.compactMode)
-                        .onReceive(Just(settings.compactMode)) { _ in
-                            settings.saveSettings()
-                        }
+                    HStack {
+                        Image(systemName: "rectangle.compress.vertical")
+                            .foregroundColor(.orange)
+                            .frame(width: 24)
+                        Toggle("Компактный режим", isOn: $settings.compactMode)
+                    }
+                    .onReceive(Just(settings.compactMode)) { _ in
+                        settings.saveSettings()
+                    }
                     
-                    Picker("Размер страницы", selection: $settings.pageSize) {
-                        Text("5").tag(5)
-                        Text("10").tag(10)
-                        Text("15").tag(15)
-                        Text("20").tag(20)
+                    HStack {
+                        Image(systemName: "list.bullet")
+                            .foregroundColor(.indigo)
+                            .frame(width: 24)
+                        Text("Размер страницы")
+                        Spacer()
+                        Picker("", selection: $settings.pageSize) {
+                            Text("5").tag(5)
+                            Text("10").tag(10)
+                            Text("15").tag(15)
+                            Text("20").tag(20)
+                        }
+                        .pickerStyle(MenuPickerStyle())
                     }
                     .onReceive(Just(settings.pageSize)) { _ in
                         settings.saveSettings()
                     }
-                }
-                
-                Section("Последняя доска") {
-                    Text(settings.lastBoard.isEmpty ? "Не выбрана" : settings.lastBoard)
-                        .foregroundColor(.secondary)
+                    
+                    HStack {
+                        Image(systemName: "rectangle.split.2x1")
+                            .foregroundColor(.teal)
+                            .frame(width: 24)
+                        Toggle("Разстраничивание", isOn: $settings.enablePagination)
+                    }
+                    .onReceive(Just(settings.enablePagination)) { _ in
+                        settings.saveSettings()
+                    }
+                    
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.red)
+                            .frame(width: 24)
+                        Toggle("Нестабильные функции", isOn: $settings.enableUnstableFeatures)
+                    }
+                    .onReceive(Just(settings.enableUnstableFeatures)) { newValue in
+                        if newValue && !UserDefaults.standard.bool(forKey: "hasShownUnstableWarning") {
+                            showingUnstableWarning = true
+                            UserDefaults.standard.set(true, forKey: "hasShownUnstableWarning")
+                        }
+                        settings.saveSettings()
+                    }
                 }
                 
                 Section("Аутентификация") {
-                    SecureField("Passcode для постинга", text: $settings.passcode)
-                        .onReceive(Just(settings.passcode)) { _ in
-                            settings.saveSettings()
-                        }
+                    HStack {
+                        Image(systemName: "lock.shield")
+                            .foregroundColor(.orange)
+                            .frame(width: 24)
+                        SecureField("Passcode для постинга", text: $settings.passcode)
+                    }
+                    .onReceive(Just(settings.passcode)) { _ in
+                        settings.saveSettings()
+                    }
                     
-                    SecureField("Ключ аутентификации", text: $settings.key)
-                        .onReceive(Just(settings.key)) { _ in
-                            settings.saveSettings()
-                        }
+                    HStack {
+                        Image(systemName: "key")
+                            .foregroundColor(.blue)
+                            .frame(width: 24)
+                        SecureField("Ключ аутентификации", text: $settings.key)
+                    }
+                    .onReceive(Just(settings.key)) { _ in
+                        settings.saveSettings()
+                    }
                     
                     HStack {
                         Button("Тест ключа") {
@@ -112,14 +173,31 @@ struct SettingsView: View {
                         NotificationSettingsView()
                             .environmentObject(apiClient)
                     }
+                    .overlay(
+                        HStack {
+                            Spacer()
+                            Image(systemName: "sparkles")
+                                .font(.caption2)
+                                .foregroundColor(.orange)
+                        }
+                        .padding(.trailing, 8)
+                    )
                 }
                 
                 Section("Управление кэшем") {
-                    Button("Очистить кэш досок") {
+                    Button(action: {
                         Cache.shared.delete("boards")
+                    }) {
+                        HStack {
+                            Image(systemName: "list.bullet")
+                                .foregroundColor(.blue)
+                                .frame(width: 24)
+                            Text("Очистить кэш досок")
+                            Spacer()
+                        }
                     }
                     
-                    Button("Очистить кэш тредов") {
+                    Button(action: {
                         apiClient.getBoards { result in
                             if case .success(let boards) = result {
                                 for board in boards {
@@ -127,27 +205,80 @@ struct SettingsView: View {
                                 }
                             }
                         }
+                    }) {
+                        HStack {
+                            Image(systemName: "doc.text")
+                                .foregroundColor(.green)
+                                .frame(width: 24)
+                            Text("Очистить кэш тредов")
+                            Spacer()
+                        }
                     }
                     
-                    Button("Очистить весь кэш") {
+                    Button(action: {
+                        settings.clearImageCache()
+                    }) {
+                        HStack {
+                            Image(systemName: "photo")
+                                .foregroundColor(.purple)
+                                .frame(width: 24)
+                            Text("Очистить кэш изображений")
+                            Spacer()
+                        }
+                    }
+                    
+                    Button(action: {
                         Cache.shared.clear()
+                        settings.clearImageCache()
+                    }) {
+                        HStack {
+                            Image(systemName: "trash")
+                                .foregroundColor(.red)
+                                .frame(width: 24)
+                            Text("Очистить весь кэш")
+                            Spacer()
+                        }
                     }
-                }
-                
-                Section("Сброс") {
-                    Button("Сбросить настройки") {
-                        settings.resetSettings()
-                    }
-                    .foregroundColor(.red)
                 }
                 
                 Section {
-                    Button("Об аппке") {
+                    Button(action: {
+                        settings.resetSettings()
+                    }) {
+                        HStack {
+                            Image(systemName: "arrow.counterclockwise")
+                                .foregroundColor(.red)
+                                .frame(width: 24)
+                            Text("Сбросить настройки")
+                                .foregroundColor(.red)
+                            Spacer()
+                        }
+                    }
+                }
+                
+                Section {
+                    Button(action: {
                         showingAbout = true
+                    }) {
+                        HStack {
+                            Image(systemName: "info.circle")
+                                .foregroundColor(.blue)
+                                .frame(width: 24)
+                            Text("Об аппке")
+                            Spacer()
+                        }
                     }
                     
-                    Button("Я думаю тебя направили сюда") {
+                    Button(action: {
                         showingInfo = true
+                    }) {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle")
+                                .foregroundColor(.orange)
+                                .frame(width: 24)
+                            Text("Я думаю тебя направили сюда")
+                            Spacer()
+                        }
                     }
                 }
                 
@@ -170,20 +301,16 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Настройки")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Готово") {
-                        dismiss()
-                    }
-                }
-            }
+            .navigationBarTitleDisplayMode(.large)
             .sheet(isPresented: $showingAbout) {
                 AboutView()
             }
             .sheet(isPresented: $showingDebugMenu) {
                 DebugMenuView()
                     .environmentObject(NotificationManager.shared)
+            }
+            .sheet(isPresented: $showingUnstableWarning) {
+                UnstableFeaturesWarningView(isPresented: $showingUnstableWarning)
             }
             .alert("Информация о НЕОЖИДАНЫХ проблемах", isPresented: $showingInfo) {
                 Button("Закрыть") { }
@@ -192,7 +319,9 @@ struct SettingsView: View {
             }
         }
     }
-    
+}
+
+extension SettingsView {
     private func testKey() {
         guard !settings.key.isEmpty else { return }
         
@@ -261,9 +390,9 @@ struct AboutView: View {
                 Divider()
                 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Версия: 1.1.0-ios-alpha (Always in alpha lol)")
+                    Text("Версия: 2.0.0-ios-alpha (Always in alpha lol)")
                     Text("Автор: w^x (лейн, платон, а похуй как угодно)")
-                    Text("Разработано с ❤️ на Свифт")
+                    Text("Разработано с <3 на Свифт")
                 }
                 .font(.body)
                 
@@ -317,6 +446,94 @@ struct DebugMenuView: View {
             .padding()
             .navigationTitle("Debug")
             .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+}
+
+struct UnstableFeaturesWarningView: View {
+    @Binding var isPresented: Bool
+    @State private var timeRemaining = 10
+    @State private var canConfirm = false
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 60))
+                    .foregroundColor(.red)
+                
+                Text("ВНИМАНИЕ!")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                    .foregroundColor(.red)
+                
+                VStack(spacing: 12) {
+                    Text("Вы собираетесь включить нестабильные функции")
+                        .font(.headline)
+                        .multilineTextAlignment(.center)
+                    
+                    Text("Эти функции находятся в разработке и могут:")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Работать нестабильно или не работать вовсе")
+                        Text("Вызывать краши приложения")
+                        Text("Потреблять больше ресурсов")
+                        Text("Иметь неожиданное поведение")
+                    }
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    
+                    Text("НИКАКИЕ ЖАЛОБЫ на нестабильный функционал НЕ ПРИНИМАЮТСЯ!")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.red)
+                        .multilineTextAlignment(.center)
+                        .padding(.top)
+                }
+                
+                Spacer()
+                
+                VStack(spacing: 16) {
+                    if !canConfirm {
+                        Text("Подтверждение будет доступно через: \(timeRemaining)")
+                            .font(.headline)
+                            .foregroundColor(.orange)
+                    }
+                    
+                    Button(action: {
+                        isPresented = false
+                    }) {
+                        Text(canConfirm ? "Я уверен!" : "Отмена")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(canConfirm ? Color.red : Color.gray)
+                            .cornerRadius(10)
+                    }
+                    .disabled(!canConfirm)
+                }
+            }
+            .padding()
+            .navigationTitle("Предупреждение")
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                startTimer()
+            }
+        }
+    }
+    
+    private func startTimer() {
+        Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
+            if timeRemaining > 0 {
+                timeRemaining -= 1
+            } else {
+                canConfirm = true
+                timer.invalidate()
+            }
         }
     }
 }

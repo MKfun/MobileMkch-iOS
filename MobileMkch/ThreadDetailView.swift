@@ -145,99 +145,71 @@ struct ThreadContentView: View {
 struct CommentView: View {
     let comment: Comment
     let showFiles: Bool
+    @EnvironmentObject var settings: Settings
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("ID: \(comment.id)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+        if settings.compactMode {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("ID: \(comment.id)")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    Text(comment.creationDate, style: .date)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
                 
-                Spacer()
+                if !comment.text.isEmpty {
+                    Text(comment.formattedText)
+                        .font(.caption)
+                        .lineLimit(2)
+                }
                 
-                Text(comment.creationDate, style: .date)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            if showFiles && !comment.files.isEmpty {
-                FilesView(files: comment.files)
-            }
-            
-            if !comment.text.isEmpty {
-                Text(comment.formattedText)
-                    .font(.body)
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(8)
-    }
-}
-
-struct FilesView: View {
-    let files: [String]
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "paperclip")
-                    .foregroundColor(.blue)
-                Text("Файлы (\(files.count))")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
-                ForEach(files, id: \.self) { filePath in
-                    FileButton(fileInfo: FileInfo(filePath: filePath))
+                if showFiles && !comment.files.isEmpty {
+                    HStack {
+                        Image(systemName: "paperclip")
+                            .foregroundColor(.blue)
+                            .font(.caption2)
+                        Text("\(comment.files.count)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
                 }
             }
-        }
-    }
-}
-
-struct FileButton: View {
-    let fileInfo: FileInfo
-    
-    var body: some View {
-        Button(action: {
-            if let url = URL(string: fileInfo.url) {
-                UIApplication.shared.open(url)
-            }
-        }) {
-            HStack {
-                Image(systemName: fileIcon)
-                    .foregroundColor(fileColor)
-                Text(fileInfo.filename)
-                    .font(.caption)
-                    .lineLimit(1)
-                Spacer()
-            }
-            .padding(8)
-            .background(Color(.systemGray5))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(Color(.systemGray6))
             .cornerRadius(6)
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-    
-    private var fileIcon: String {
-        if fileInfo.isImage {
-            return "photo"
-        } else if fileInfo.isVideo {
-            return "video"
         } else {
-            return "doc"
-        }
-    }
-    
-    private var fileColor: Color {
-        if fileInfo.isImage {
-            return .green
-        } else if fileInfo.isVideo {
-            return .red
-        } else {
-            return .blue
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("ID: \(comment.id)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    Text(comment.creationDate, style: .date)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                if showFiles && !comment.files.isEmpty {
+                    FilesView(files: comment.files)
+                }
+                
+                if !comment.text.isEmpty {
+                    Text(comment.formattedText)
+                        .font(.body)
+                }
+            }
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(8)
         }
     }
 }

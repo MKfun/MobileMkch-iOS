@@ -34,7 +34,7 @@ class Cache {
                 return nil
             }
             
-            guard let data = item.data as? Data else { return nil }
+            let data = item.data
             
             do {
                 return try JSONDecoder().decode(type, from: data)

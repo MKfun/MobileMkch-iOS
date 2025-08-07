@@ -6,6 +6,7 @@ class APIClient: ObservableObject {
     private let session = URLSession.shared
     private var authKey: String = ""
     private var passcode: String = ""
+    private let userAgent = "MobileMkch/2.0.0-ios-alpha"
     
     func authenticate(authKey: String, completion: @escaping (Error?) -> Void) {
         self.authKey = authKey
@@ -13,6 +14,7 @@ class APIClient: ObservableObject {
         let url = URL(string: "\(baseURL)/key/auth/")!
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
         
         session.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
@@ -50,6 +52,7 @@ class APIClient: ObservableObject {
                 postRequest.httpMethod = "POST"
                 postRequest.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
                 postRequest.setValue("\(self.baseURL)/key/auth/", forHTTPHeaderField: "Referer")
+                postRequest.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
                 postRequest.httpBody = formData.query?.data(using: .utf8)
                 
                 self.session.dataTask(with: postRequest) { _, postResponse, postError in
@@ -78,6 +81,7 @@ class APIClient: ObservableObject {
         let url = URL(string: "\(baseURL)/passcode/enter/")!
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
         
         session.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
@@ -144,8 +148,10 @@ class APIClient: ObservableObject {
         }
         
         let url = URL(string: "\(apiURL)/boards/")!
+        var request = URLRequest(url: url)
+        request.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
         
-        session.dataTask(with: url) { data, response, error in
+        session.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
                     completion(.failure(error))
@@ -181,8 +187,10 @@ class APIClient: ObservableObject {
         }
         
         let url = URL(string: "\(apiURL)/board/\(boardCode)")!
+        var request = URLRequest(url: url)
+        request.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
         
-        session.dataTask(with: url) { data, response, error in
+        session.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
                     completion(.failure(error))
@@ -218,8 +226,10 @@ class APIClient: ObservableObject {
         }
         
         let url = URL(string: "\(apiURL)/board/\(boardCode)/thread/\(threadId)")!
+        var request = URLRequest(url: url)
+        request.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
         
-        session.dataTask(with: url) { data, response, error in
+        session.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
                     completion(.failure(error))
@@ -255,8 +265,10 @@ class APIClient: ObservableObject {
         }
         
         let url = URL(string: "\(apiURL)/board/\(boardCode)/thread/\(threadId)/comments")!
+        var request = URLRequest(url: url)
+        request.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
         
-        session.dataTask(with: url) { data, response, error in
+        session.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
                     completion(.failure(error))
@@ -354,6 +366,7 @@ class APIClient: ObservableObject {
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
         
         session.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
@@ -392,6 +405,7 @@ class APIClient: ObservableObject {
                 postRequest.httpMethod = "POST"
                 postRequest.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
                 postRequest.setValue(formURL, forHTTPHeaderField: "Referer")
+                postRequest.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
                 postRequest.httpBody = formData.query?.data(using: .utf8)
                 
                 self.session.dataTask(with: postRequest) { _, postResponse, postError in
@@ -435,6 +449,7 @@ class APIClient: ObservableObject {
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
         
         session.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
@@ -472,6 +487,7 @@ class APIClient: ObservableObject {
                 postRequest.httpMethod = "POST"
                 postRequest.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
                 postRequest.setValue(formURL, forHTTPHeaderField: "Referer")
+                postRequest.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
                 postRequest.httpBody = formData.query?.data(using: .utf8)
                 
                 self.session.dataTask(with: postRequest) { _, postResponse, postError in
@@ -512,8 +528,10 @@ class APIClient: ObservableObject {
     
     func checkNewThreads(forBoard boardCode: String, lastKnownThreadId: Int, completion: @escaping (Result<[Thread], Error>) -> Void) {
         let url = URL(string: "\(apiURL)/board/\(boardCode)")!
+        var request = URLRequest(url: url)
+        request.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
         
-        session.dataTask(with: url) { data, response, error in
+        session.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
                     completion(.failure(error))

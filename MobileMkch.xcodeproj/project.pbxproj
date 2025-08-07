@@ -281,7 +281,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = "1.1.0-ios";
+				MARKETING_VERSION = "2.0.0-ios";
 				PRODUCT_BUNDLE_IDENTIFIER = com.mkch.MobileMkch;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -317,7 +317,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = "1.1.0-ios";
+				MARKETING_VERSION = "2.0.0-ios";
 				PRODUCT_BUNDLE_IDENTIFIER = com.mkch.MobileMkch;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

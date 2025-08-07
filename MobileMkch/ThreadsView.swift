@@ -43,45 +43,45 @@ struct ThreadsView: View {
                     .buttonStyle(.bordered)
                 }
                 .padding()
-            } else {
-                List {
-                    ForEach(currentThreads) { thread in
-                        NavigationLink(destination: ThreadDetailView(board: board, thread: thread)
-                            .environmentObject(settings)
-                            .environmentObject(apiClient)) {
-                            ThreadRow(thread: thread, showFiles: settings.showFiles)
-                        }
-                    }
-                }
-                
-                if totalPages > 1 {
-                    HStack {
-                        Button("←") {
-                            if currentPage > 0 {
-                                currentPage -= 1
+                            } else {
+                    List {
+                        ForEach(settings.enablePagination ? currentThreads : threads) { thread in
+                            NavigationLink(destination: ThreadDetailView(board: board, thread: thread)
+                                .environmentObject(settings)
+                                .environmentObject(apiClient)) {
+                                ThreadRow(thread: thread, board: board, showFiles: settings.showFiles)
                             }
                         }
-                        .disabled(currentPage == 0)
-                        
-                        Spacer()
-                        
-                        Text("Страница \(currentPage + 1) из \(totalPages)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        Spacer()
-                        
-                        Button("→") {
-                            if currentPage < totalPages - 1 {
-                                currentPage += 1
-                            }
-                        }
-                        .disabled(currentPage >= totalPages - 1)
                     }
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
+                    
+                    if settings.enablePagination && totalPages > 1 {
+                        HStack {
+                            Button("<-") {
+                                if currentPage > 0 {
+                                    currentPage -= 1
+                                }
+                            }
+                            .disabled(currentPage == 0)
+                            
+                            Spacer()
+                            
+                            Text("Страница \(currentPage + 1) из \(totalPages)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            Spacer()
+                            
+                            Button("->") {
+                                if currentPage < totalPages - 1 {
+                                    currentPage += 1
+                                }
+                            }
+                            .disabled(currentPage >= totalPages - 1)
+                        }
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                    }
                 }
-            }
         }
         .navigationTitle("/\(board.code)/")
         .navigationBarTitleDisplayMode(.inline)
@@ -129,57 +129,137 @@ struct ThreadsView: View {
 
 struct ThreadRow: View {
     let thread: Thread
+    let board: Board
     let showFiles: Bool
+    @EnvironmentObject var settings: Settings
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        if settings.compactMode {
             HStack {
-                Text("#\(thread.id): \(thread.title)")
-                    .font(.headline)
-                    .lineLimit(2)
-                
-                Spacer()
-                
-                if thread.isPinned {
-                    Image(systemName: "pin.fill")
-                        .foregroundColor(.orange)
-                }
-            }
-            
-            HStack {
-                Text(thread.creationDate, style: .date)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                if thread.ratingValue > 0 {
-                    HStack(spacing: 2) {
-                        Image(systemName: "star.fill")
-                            .foregroundColor(.yellow)
-                        Text("\(thread.ratingValue)")
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Text("#\(thread.id)")
                             .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Text(thread.title)
+                            .font(.body)
+                            .lineLimit(1)
+                        
+                        Spacer()
+                    }
+                    
+                    HStack {
+                        Text(thread.creationDate, style: .date)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        
+                        if thread.ratingValue > 0 {
+                            HStack(spacing: 2) {
+                                Image(systemName: "star.fill")
+                                    .foregroundColor(.yellow)
+                                    .font(.caption2)
+                                Text("\(thread.ratingValue)")
+                                    .font(.caption2)
+                            }
+                        }
+                        
+                        if showFiles && !thread.files.isEmpty {
+                            HStack(spacing: 2) {
+                                Image(systemName: "paperclip")
+                                    .foregroundColor(.blue)
+                                    .font(.caption2)
+                                Text("\(thread.files.count)")
+                                    .font(.caption2)
+                            }
+                        }
+                        
+                        if thread.isPinned {
+                            Image(systemName: "pin.fill")
+                                .foregroundColor(.orange)
+                                .font(.caption2)
+                        }
+                        
+                        Spacer()
                     }
                 }
                 
-                if showFiles && !thread.files.isEmpty {
-                    HStack(spacing: 2) {
-                        Image(systemName: "paperclip")
-                            .foregroundColor(.blue)
-                        Text("\(thread.files.count)")
-                            .font(.caption)
+                Button(action: {
+                    if settings.isFavorite(thread.id, boardCode: board.code) {
+                        settings.removeFromFavorites(thread.id, boardCode: board.code)
+                    } else {
+                        settings.addToFavorites(thread, board: board)
+                    }
+                }) {
+                    Image(systemName: settings.isFavorite(thread.id, boardCode: board.code) ? "heart.fill" : "heart")
+                        .foregroundColor(settings.isFavorite(thread.id, boardCode: board.code) ? .red : .gray)
+                        .font(.caption)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            .padding(.vertical, 2)
+        } else {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("#\(thread.id): \(thread.title)")
+                        .font(.headline)
+                        .lineLimit(2)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        if settings.isFavorite(thread.id, boardCode: board.code) {
+                            settings.removeFromFavorites(thread.id, boardCode: board.code)
+                        } else {
+                            settings.addToFavorites(thread, board: board)
+                        }
+                    }) {
+                        Image(systemName: settings.isFavorite(thread.id, boardCode: board.code) ? "heart.fill" : "heart")
+                            .foregroundColor(settings.isFavorite(thread.id, boardCode: board.code) ? .red : .gray)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    
+                    if thread.isPinned {
+                        Image(systemName: "pin.fill")
+                            .foregroundColor(.orange)
                     }
                 }
                 
-                Spacer()
+                HStack {
+                    Text(thread.creationDate, style: .date)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    if thread.ratingValue > 0 {
+                        HStack(spacing: 2) {
+                            Image(systemName: "star.fill")
+                                .foregroundColor(.yellow)
+                            Text("\(thread.ratingValue)")
+                                .font(.caption)
+                        }
+                    }
+                    
+                    if showFiles && !thread.files.isEmpty {
+                        HStack(spacing: 2) {
+                            Image(systemName: "paperclip")
+                                .foregroundColor(.blue)
+                            Text("\(thread.files.count)")
+                                .font(.caption)
+                        }
+                    }
+                    
+                    Spacer()
+                }
+                
+                if !thread.text.isEmpty {
+                    Text(thread.text)
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                        .lineLimit(3)
+                }
             }
-            
-            if !thread.text.isEmpty {
-                Text(thread.text)
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .lineLimit(3)
-            }
+            .padding(.vertical, 4)
         }
-        .padding(.vertical, 4)
     }
 }
 

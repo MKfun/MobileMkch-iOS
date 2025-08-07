@@ -86,4 +86,20 @@ struct APIError: Error {
     var localizedDescription: String {
         return message
     }
+}
+
+struct FavoriteThread: Codable, Identifiable {
+    let id: Int
+    let title: String
+    let board: String
+    let boardDescription: String
+    let addedDate: Date
+    
+    init(thread: Thread, board: Board) {
+        self.id = thread.id
+        self.title = thread.title
+        self.board = board.code
+        self.boardDescription = board.description
+        self.addedDate = Date()
+    }
 } 
