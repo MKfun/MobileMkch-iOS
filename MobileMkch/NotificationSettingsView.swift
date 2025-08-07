@@ -7,6 +7,8 @@ struct NotificationSettingsView: View {
     @State private var showingPermissionAlert = false
     @State private var boards: [Board] = []
     @State private var isLoadingBoards = false
+    @State private var isCheckingThreads = false
+    @State private var showingTestNotification = false
     
     var body: some View {
         VStack {
@@ -40,7 +42,7 @@ struct NotificationSettingsView: View {
                 .cornerRadius(8)
                 .padding(.horizontal)
                 
-                Text("Уведомления находятся в бета-версии и могут работать нестабильно. Функция может работать нестабильно или не работать ВОВСЕ.")
+                Text("Уведомления находятся в бета-версии и могут работать нестабильно.")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -71,12 +73,59 @@ struct NotificationSettingsView: View {
                             }
                             .onChange(of: settings.notificationInterval) { _ in
                                 settings.saveSettings()
+                                BackgroundTaskManager.shared.scheduleBackgroundTask()
                             }
                             
-                            Button("Проверить новые треды сейчас") {
-                                checkNewThreadsNow()
+                            Button(action: {
+                                showingTestNotification = true
+                                notificationManager.scheduleTestNotification()
+                            }) {
+                                HStack {
+                                    Image(systemName: "bell.badge")
+                                    Text("Отправить тестовое уведомление")
+                                }
                             }
                             .foregroundColor(.blue)
+                            .disabled(!notificationManager.isNotificationsEnabled)
+                            
+                            Button(action: {
+                                isCheckingThreads = true
+                                checkNewThreadsNow()
+                            }) {
+                                HStack {
+                                    if isCheckingThreads {
+                                        ProgressView()
+                                            .scaleEffect(0.8)
+                                    } else {
+                                        Image(systemName: "arrow.clockwise")
+                                    }
+                                    Text("Проверить новые треды сейчас")
+                                }
+                            }
+                            .foregroundColor(.blue)
+                            .disabled(isCheckingThreads || notificationManager.subscribedBoards.isEmpty)
+                            
+                            Button(action: {
+                                syncAllBoards()
+                            }) {
+                                HStack {
+                                    Image(systemName: "arrow.triangle.2.circlepath")
+                                    Text("Синхронизировать все доски")
+                                }
+                            }
+                            .foregroundColor(.orange)
+                            .disabled(notificationManager.subscribedBoards.isEmpty)
+                            
+                            Button(action: {
+                                notificationManager.clearAllSavedThreads()
+                            }) {
+                                HStack {
+                                    Image(systemName: "trash")
+                                    Text("Очистить все сохраненные треды")
+                                }
+                            }
+                            .foregroundColor(.red)
+                            .disabled(notificationManager.subscribedBoards.isEmpty)
                         }
                     }
                     
@@ -89,6 +138,9 @@ struct NotificationSettingsView: View {
                                     Text("Загрузка досок...")
                                         .foregroundColor(.secondary)
                                 }
+                            } else if boards.isEmpty {
+                                Text("Не удалось загрузить доски")
+                                    .foregroundColor(.secondary)
                             } else {
                                 ForEach(boards) { board in
                                     HStack {
@@ -117,6 +169,22 @@ struct NotificationSettingsView: View {
                                 }
                             }
                         }
+                        
+                        Section(header: Text("Статус")) {
+                            HStack {
+                                Text("Разрешения")
+                                Spacer()
+                                Text(notificationManager.isNotificationsEnabled ? "Включены" : "Отключены")
+                                    .foregroundColor(notificationManager.isNotificationsEnabled ? .green : .red)
+                            }
+                            
+                            HStack {
+                                Text("Подписки")
+                                Spacer()
+                                Text("\(notificationManager.subscribedBoards.count) досок")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                     }
                 }
             }
@@ -139,6 +207,11 @@ struct NotificationSettingsView: View {
         } message: {
             Text("Для получения уведомлений о новых тредах необходимо разрешить уведомления в настройках")
         }
+        .alert("Тестовое уведомление", isPresented: $showingTestNotification) {
+            Button("OK") { }
+        } message: {
+            Text("Тестовое уведомление отправлено. Проверьте, получили ли вы его.")
+        }
     }
 }
 
@@ -154,24 +227,56 @@ extension NotificationSettingsView {
     private func checkNewThreadsNow() {
         guard !notificationManager.subscribedBoards.isEmpty else { return }
         
+        let group = DispatchGroup()
+        var foundNewThreads = false
+        
         for boardCode in notificationManager.subscribedBoards {
-            let lastKnownId = UserDefaults.standard.integer(forKey: "lastThreadId_\(boardCode)")
+            group.enter()
             
-            apiClient.checkNewThreads(forBoard: boardCode, lastKnownThreadId: lastKnownId) { result in
+            apiClient.checkNewThreads(forBoard: boardCode, lastKnownThreadId: 0) { result in
                 DispatchQueue.main.async {
                     switch result {
                     case .success(let newThreads):
                         if !newThreads.isEmpty {
+                            foundNewThreads = true
                             for thread in newThreads {
                                 notificationManager.scheduleNotification(for: thread, boardCode: boardCode)
                             }
-                            UserDefaults.standard.set(newThreads.first?.id ?? lastKnownId, forKey: "lastThreadId_\(boardCode)")
                         }
-                    case .failure:
-                        break
+                    case .failure(let error):
+                        print("Ошибка проверки тредов для /\(boardCode)/: \(error)")
                     }
+                    group.leave()
                 }
             }
+        }
+        
+        group.notify(queue: .main) {
+            isCheckingThreads = false
+            if !foundNewThreads {
+                print("Новых тредов не найдено")
+            }
+        }
+    }
+    
+    private func syncAllBoards() {
+        for boardCode in notificationManager.subscribedBoards {
+            let savedThreadsKey = "savedThreads_\(boardCode)"
+            UserDefaults.standard.removeObject(forKey: savedThreadsKey)
+            
+            let url = URL(string: "https://mkch.pooziqo.xyz/api/board/\(boardCode)")!
+            var request = URLRequest(url: url)
+            request.setValue("MobileMkch/2.0.0-ios-alpha", forHTTPHeaderField: "User-Agent")
+            
+            URLSession.shared.dataTask(with: request) { data, response, error in
+                if let data = data,
+                   let threads = try? JSONDecoder().decode([Thread].self, from: data) {
+                    if let encodedData = try? JSONEncoder().encode(threads) {
+                        UserDefaults.standard.set(encodedData, forKey: savedThreadsKey)
+                        print("Синхронизировано \(threads.count) тредов для /\(boardCode)/")
+                    }
+                }
+            }.resume()
         }
     }
     

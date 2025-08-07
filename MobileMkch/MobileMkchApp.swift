@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UserNotifications
 
 @main
 struct MobileMkchApp: App {
@@ -20,6 +21,25 @@ struct MobileMkchApp: App {
             UserDefaults.standard.set(backgroundTaskIdentifier, forKey: "BackgroundTaskIdentifier")
             print("Background task identifier: \(backgroundTaskIdentifier)")
         }
+    }
+    
+    private func setupNotifications() {
+        UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
+        notificationManager.requestPermission { granted in
+            if granted {
+                print("Разрешения на уведомления получены")
+            } else {
+                print("Разрешения на уведомления отклонены")
+            }
+        }
+    }
+    
+    private func handleNotificationLaunch() {
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let userInfo = scene.session.userInfo {
+            print("Приложение запущено из уведомления")
+        }
+        notificationManager.clearBadge()
     }
     
     var body: some Scene {
@@ -38,6 +58,8 @@ struct MobileMkchApp: App {
             .onAppear {
                 BackgroundTaskManager.shared.registerBackgroundTasks()
                 setupBackgroundTasks()
+                setupNotifications()
+                handleNotificationLaunch()
             }
         }
     }

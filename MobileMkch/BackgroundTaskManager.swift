@@ -24,11 +24,12 @@ class BackgroundTaskManager {
     func scheduleBackgroundTask() {
         let request = BGAppRefreshTaskRequest(identifier: backgroundTaskIdentifier)
         let settings = Settings()
-        let interval = TimeInterval(settings.notificationInterval)
+        let interval = TimeInterval(settings.notificationInterval * 60)
         request.earliestBeginDate = Date(timeIntervalSinceNow: interval)
         
         do {
             try BGTaskScheduler.shared.submit(request)
+            print("Фоновая задача запланирована на \(interval) секунд")
         } catch {
             print("Не удалось запланировать фоновую задачу: \(error)")
         }
@@ -51,20 +52,18 @@ class BackgroundTaskManager {
         for boardCode in notificationManager.subscribedBoards {
             group.enter()
             
-            let lastKnownId = UserDefaults.standard.integer(forKey: "lastThreadId_\(boardCode)")
-            
-            APIClient().checkNewThreads(forBoard: boardCode, lastKnownThreadId: lastKnownId) { result in
+            APIClient().checkNewThreads(forBoard: boardCode, lastKnownThreadId: 0) { result in
                 switch result {
                 case .success(let newThreads):
                     if !newThreads.isEmpty {
                         hasNewThreads = true
+                        print("Найдено \(newThreads.count) новых тредов в /\(boardCode)/")
                         for thread in newThreads {
                             self.notificationManager.scheduleNotification(for: thread, boardCode: boardCode)
                         }
-                        UserDefaults.standard.set(newThreads.first?.id ?? lastKnownId, forKey: "lastThreadId_\(boardCode)")
                     }
-                case .failure:
-                    break
+                case .failure(let error):
+                    print("Ошибка проверки новых тредов для /\(boardCode)/: \(error)")
                 }
                 group.leave()
             }

@@ -550,9 +550,31 @@ class APIClient: ObservableObject {
                 }
                 
                 do {
-                    let threads = try JSONDecoder().decode([Thread].self, from: data)
-                    let newThreads = threads.filter { $0.id > lastKnownThreadId }
-                    completion(.success(newThreads))
+                    let currentThreads = try JSONDecoder().decode([Thread].self, from: data)
+                    
+                    let savedThreadsKey = "savedThreads_\(boardCode)"
+                    let savedThreadsData = UserDefaults.standard.data(forKey: savedThreadsKey)
+                    
+                    if let savedThreadsData = savedThreadsData,
+                       let savedThreads = try? JSONDecoder().decode([Thread].self, from: savedThreadsData) {
+                        
+                        let savedThreadIds = Set(savedThreads.map { $0.id })
+                        let newThreads = currentThreads.filter { !savedThreadIds.contains($0.id) }
+                        
+                        if !newThreads.isEmpty {
+                            print("Найдено \(newThreads.count) новых тредов в /\(boardCode)/")
+                        }
+                        
+                        completion(.success(newThreads))
+                    } else {
+                        print("Первая синхронизация для /\(boardCode)/ - сохраняем \(currentThreads.count) тредов")
+                        completion(.success([]))
+                    }
+                    
+                    if let encodedData = try? JSONEncoder().encode(currentThreads) {
+                        UserDefaults.standard.set(encodedData, forKey: savedThreadsKey)
+                    }
+                    
                 } catch {
                     completion(.failure(error))
                 }
