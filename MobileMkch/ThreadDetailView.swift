@@ -107,9 +107,7 @@ struct ThreadDetailView: View {
                             }
                             .onAppear {
                                 if settings.liveActivityEnabled {
-                                    if #available(iOS 16.1, *) {
-                                        activityOn = LiveActivityManager.shared.isActive(threadId: thread.id)
-                                    }
+                                                                    activityOn = LiveActivityManager.shared.isActive(threadId: thread.id)
                                 }
                             }
                     }

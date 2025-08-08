@@ -31,29 +31,38 @@ struct SimpleEntry: TimelineEntry {
     let offline: Bool
 }
 
-struct Provider: AppIntentTimelineProvider {
+struct Provider: TimelineProvider {
     func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), favorites: sample(), offline: false)
+        SimpleEntry(date: Date(), favorites: [
+            FavoriteThreadWidget(id: 1, title: "Загрузка...", board: "b", boardDescription: "", addedDate: Date())
+        ], offline: false)
     }
 
-    func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> SimpleEntry {
+    func getSnapshot(in context: Context, completion: @escaping (SimpleEntry) -> ()) {
         let favs = loadFavorites()
         if favs.isEmpty {
-            return SimpleEntry(date: Date(), favorites: await loadFromNetwork(board: configuration.boardCode), offline: false)
+            Task {
+                let networkFavs = await loadFromNetwork(board: "b")
+                completion(SimpleEntry(date: Date(), favorites: networkFavs, offline: false))
+            }
+        } else {
+            completion(SimpleEntry(date: Date(), favorites: favs, offline: loadOffline()))
         }
-        return SimpleEntry(date: Date(), favorites: favs, offline: loadOffline())
     }
     
-    func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
-        var favorites = loadFavorites()
-        var offline = loadOffline()
-        if favorites.isEmpty {
-            favorites = await loadFromNetwork(board: configuration.boardCode)
-            offline = false
+    func getTimeline(in context: Context, completion: @escaping (Timeline<SimpleEntry>) -> ()) {
+        Task {
+            var favorites = loadFavorites()
+            var offline = loadOffline()
+            if favorites.isEmpty {
+                favorites = await loadFromNetwork(board: "b")
+                offline = false
+            }
+            let entry = SimpleEntry(date: Date(), favorites: favorites, offline: offline)
+            let refresh = Calendar.current.date(byAdding: .minute, value: 15, to: Date()) ?? Date().addingTimeInterval(900)
+            let timeline = Timeline(entries: [entry], policy: .after(refresh))
+            completion(timeline)
         }
-        let entry = SimpleEntry(date: Date(), favorites: favorites, offline: offline)
-        let refresh = Calendar.current.date(byAdding: .minute, value: 15, to: Date()) ?? Date().addingTimeInterval(900)
-        return Timeline(entries: [entry], policy: .after(refresh))
     }
     
     private func loadFavorites() -> [FavoriteThreadWidget] {
@@ -71,7 +80,7 @@ struct Provider: AppIntentTimelineProvider {
     }
     
     private func sample() -> [FavoriteThreadWidget] {
-        [FavoriteThreadWidget(id: 1, title: "Пример треда", board: "b", boardDescription: "Болталка", addedDate: Date())]
+        []
     }
 
     private func loadFromNetwork(board: String) async -> [FavoriteThreadWidget] {
@@ -102,8 +111,18 @@ struct FavoritesWidgetEntryView : View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(padding)
-        .foregroundStyle(.primary)
-        .containerBackground(.background, for: .widget)
+        .background(
+            Group {
+                if #available(iOS 17.0, *) {
+                    Color.clear
+                        .containerBackground(for: .widget) {
+                            Color.clear
+                        }
+                } else {
+                    Color.clear
+                }
+            }
+        )
     }
     
     private var spacing: CGFloat { family == .systemSmall ? 4 : 6 }
@@ -116,6 +135,7 @@ struct FavoritesWidgetEntryView : View {
         HStack(spacing: 6) {
             Text("Избранное")
                 .font(headerFont)
+                .foregroundColor(.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
             Spacer()
@@ -137,6 +157,7 @@ struct FavoritesWidgetEntryView : View {
                         BoardTag(code: fav.board)
                         Text(fav.title)
                             .font(titleFont)
+                            .foregroundColor(.primary)
                             .lineLimit(1)
                             .truncationMode(.tail)
                     }
@@ -145,6 +166,7 @@ struct FavoritesWidgetEntryView : View {
                         BoardTag(code: fav.board)
                         Text(fav.title)
                             .font(titleFont)
+                            .foregroundColor(.primary)
                             .lineLimit(2)
                             .truncationMode(.tail)
                             .multilineTextAlignment(.leading)
@@ -172,7 +194,7 @@ struct FavoritesWidget: Widget {
     let kind: String = "FavoritesWidget"
 
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: kind, intent: ConfigurationAppIntent.self, provider: Provider()) { entry in
+        StaticConfiguration(kind: kind, provider: Provider()) { entry in
             FavoritesWidgetEntryView(entry: entry)
         }
         .configurationDisplayName("Избранное MobileMkch")
