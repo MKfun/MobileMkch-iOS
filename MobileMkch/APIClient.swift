@@ -17,7 +17,7 @@ class APIClient: ObservableObject {
     }()
     private var authKey: String = ""
     private var passcode: String = ""
-    private let userAgent = "MobileMkch/2.1.0-ios-alpha"
+    private let userAgent = "MobileMkch/2.1.1-ios-alpha"
     
     func authenticate(authKey: String, completion: @escaping (Error?) -> Void) {
         self.authKey = authKey
