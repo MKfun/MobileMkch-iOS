@@ -1,0 +1,18 @@
+//
+//  FavoritesWidgetBundle.swift
+//  FavoritesWidget
+//
+//  Created by Platon on 08.08.2025.
+//
+
+import WidgetKit
+import SwiftUI
+
+@main
+struct FavoritesWidgetBundle: WidgetBundle {
+    var body: some Widget {
+        FavoritesWidget()
+        FavoritesWidgetControl()
+        FavoritesWidgetLiveActivity()
+    }
+}
