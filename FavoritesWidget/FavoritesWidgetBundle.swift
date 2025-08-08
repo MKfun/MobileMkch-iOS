@@ -12,7 +12,5 @@ import SwiftUI
 struct FavoritesWidgetBundle: WidgetBundle {
     var body: some Widget {
         FavoritesWidget()
-        FavoritesWidgetControl()
-        FavoritesWidgetLiveActivity()
     }
 }

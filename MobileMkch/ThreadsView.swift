@@ -5,6 +5,7 @@ struct ThreadsView: View {
     @EnvironmentObject var settings: Settings
     @EnvironmentObject var apiClient: APIClient
     @EnvironmentObject var notificationManager: NotificationManager
+    @EnvironmentObject var networkMonitor: NetworkMonitor
     @State private var threads: [Thread] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -21,6 +22,15 @@ struct ThreadsView: View {
     
     var body: some View {
         VStack {
+            if networkMonitor.offlineEffective {
+                HStack(spacing: 8) {
+                    Image(systemName: "wifi.slash")
+                        .foregroundColor(.orange)
+                    Text("Оффлайн режим. Показаны сохранённые данные")
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                }
+            }
             if isLoading {
                 VStack {
                     ProgressView()

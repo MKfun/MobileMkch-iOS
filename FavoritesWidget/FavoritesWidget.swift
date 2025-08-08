@@ -8,50 +8,162 @@
 import WidgetKit
 import SwiftUI
 
-struct Provider: AppIntentTimelineProvider {
-    func placeholder(in context: Context) -> SimpleEntry {
-        SimpleEntry(date: Date(), configuration: ConfigurationAppIntent())
-    }
+private let appGroupId = "group.mobilemkch"
 
-    func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> SimpleEntry {
-        SimpleEntry(date: Date(), configuration: configuration)
-    }
-    
-    func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
-        var entries: [SimpleEntry] = []
+struct FavoriteThreadWidget: Identifiable, Codable {
+    let id: Int
+    let title: String
+    let board: String
+    let boardDescription: String
+    let addedDate: Date
+}
 
-        // Generate a timeline consisting of five entries an hour apart, starting from the current date.
-        let currentDate = Date()
-        for hourOffset in 0 ..< 5 {
-            let entryDate = Calendar.current.date(byAdding: .hour, value: hourOffset, to: currentDate)!
-            let entry = SimpleEntry(date: entryDate, configuration: configuration)
-            entries.append(entry)
-        }
-
-        return Timeline(entries: entries, policy: .atEnd)
-    }
-
-//    func relevances() async -> WidgetRelevances<ConfigurationAppIntent> {
-//        // Generate a list containing the contexts this widget is relevant in.
-//    }
+struct ThreadDTO: Codable, Identifiable {
+    let id: Int
+    let title: String
+    let board: String
 }
 
 struct SimpleEntry: TimelineEntry {
     let date: Date
-    let configuration: ConfigurationAppIntent
+    let favorites: [FavoriteThreadWidget]
+    let offline: Bool
+}
+
+struct Provider: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> SimpleEntry {
+        SimpleEntry(date: Date(), favorites: sample(), offline: false)
+    }
+
+    func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> SimpleEntry {
+        let favs = loadFavorites()
+        if favs.isEmpty {
+            return SimpleEntry(date: Date(), favorites: await loadFromNetwork(board: configuration.boardCode), offline: false)
+        }
+        return SimpleEntry(date: Date(), favorites: favs, offline: loadOffline())
+    }
+    
+    func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
+        var favorites = loadFavorites()
+        var offline = loadOffline()
+        if favorites.isEmpty {
+            favorites = await loadFromNetwork(board: configuration.boardCode)
+            offline = false
+        }
+        let entry = SimpleEntry(date: Date(), favorites: favorites, offline: offline)
+        let refresh = Calendar.current.date(byAdding: .minute, value: 15, to: Date()) ?? Date().addingTimeInterval(900)
+        return Timeline(entries: [entry], policy: .after(refresh))
+    }
+    
+    private func loadFavorites() -> [FavoriteThreadWidget] {
+        guard let defaults = UserDefaults(suiteName: appGroupId),
+              let data = defaults.data(forKey: "favoriteThreads"),
+              let items = try? JSONDecoder().decode([FavoriteThreadWidget].self, from: data) else {
+            return []
+        }
+        return items
+    }
+    
+    private func loadOffline() -> Bool {
+        let defaults = UserDefaults(suiteName: appGroupId)
+        return defaults?.bool(forKey: "offlineMode") ?? false
+    }
+    
+    private func sample() -> [FavoriteThreadWidget] {
+        [FavoriteThreadWidget(id: 1, title: "Пример треда", board: "b", boardDescription: "Болталка", addedDate: Date())]
+    }
+
+    private func loadFromNetwork(board: String) async -> [FavoriteThreadWidget] {
+        guard let url = URL(string: "https://mkch.pooziqo.xyz/api/board/\(board)") else { return [] }
+        var req = URLRequest(url: url)
+        req.setValue("MobileMkch/2.1.1-widget", forHTTPHeaderField: "User-Agent")
+        do {
+            let (data, _) = try await URLSession.shared.data(for: req)
+            let threads = try JSONDecoder().decode([ThreadDTO].self, from: data)
+            return Array(threads.prefix(3)).map { t in
+                FavoriteThreadWidget(id: t.id, title: t.title, board: t.board, boardDescription: "", addedDate: Date())
+            }
+        } catch {
+            return []
+        }
+    }
 }
 
 struct FavoritesWidgetEntryView : View {
     var entry: Provider.Entry
+    @Environment(\.widgetFamily) private var family
 
     var body: some View {
-        VStack {
-            Text("Time:")
-            Text(entry.date, style: .time)
-
-            Text("Favorite Emoji:")
-            Text(entry.configuration.favoriteEmoji)
+        VStack(alignment: .leading, spacing: spacing) {
+            header
+            content
+            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(padding)
+        .foregroundStyle(.primary)
+        .containerBackground(.background, for: .widget)
+    }
+    
+    private var spacing: CGFloat { family == .systemSmall ? 4 : 6 }
+    private var padding: CGFloat { family == .systemSmall ? 8 : 12 }
+    private var titleFont: Font { family == .systemSmall ? .caption2 : .caption }
+    private var headerFont: Font { family == .systemSmall ? .footnote : .headline }
+    private var maxItems: Int { family == .systemSmall ? 1 : 3 }
+    
+    @ViewBuilder private var header: some View {
+        HStack(spacing: 6) {
+            Text("Избранное")
+                .font(headerFont)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Spacer()
+            if entry.offline {
+                Image(systemName: "wifi.slash").foregroundColor(.orange)
+            }
+        }
+    }
+    
+    @ViewBuilder private var content: some View {
+        if entry.favorites.isEmpty {
+            Text("Пусто")
+                .foregroundColor(.secondary)
+                .font(titleFont)
+        } else {
+            ForEach(entry.favorites.prefix(maxItems)) { fav in
+                if family == .systemSmall {
+                    HStack(spacing: 6) {
+                        BoardTag(code: fav.board)
+                        Text(fav.title)
+                            .font(titleFont)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                } else {
+                    VStack(alignment: .leading, spacing: 2) {
+                        BoardTag(code: fav.board)
+                        Text(fav.title)
+                            .font(titleFont)
+                            .lineLimit(2)
+                            .truncationMode(.tail)
+                            .multilineTextAlignment(.leading)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct BoardTag: View {
+    let code: String
+    var body: some View {
+        Text("/\(code)/")
+            .font(.caption2)
+            .foregroundColor(.blue)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color.blue.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
     }
 }
 
@@ -61,28 +173,8 @@ struct FavoritesWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: kind, intent: ConfigurationAppIntent.self, provider: Provider()) { entry in
             FavoritesWidgetEntryView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
         }
+        .configurationDisplayName("Избранное MobileMkch")
+        .description("Показывает избранные треды или топ по выбранной доске.")
     }
-}
-
-extension ConfigurationAppIntent {
-    fileprivate static var smiley: ConfigurationAppIntent {
-        let intent = ConfigurationAppIntent()
-        intent.favoriteEmoji = "😀"
-        return intent
-    }
-    
-    fileprivate static var starEyes: ConfigurationAppIntent {
-        let intent = ConfigurationAppIntent()
-        intent.favoriteEmoji = "🤩"
-        return intent
-    }
-}
-
-#Preview(as: .systemSmall) {
-    FavoritesWidget()
-} timeline: {
-    SimpleEntry(date: .now, configuration: .smiley)
-    SimpleEntry(date: .now, configuration: .starEyes)
 }

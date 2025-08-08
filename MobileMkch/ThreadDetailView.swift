@@ -5,6 +5,7 @@ struct ThreadDetailView: View {
     let thread: Thread
     @EnvironmentObject var settings: Settings
     @EnvironmentObject var apiClient: APIClient
+    @EnvironmentObject var networkMonitor: NetworkMonitor
     @State private var threadDetail: ThreadDetail?
     @State private var comments: [Comment] = []
     @State private var isLoading = false
@@ -14,6 +15,15 @@ struct ThreadDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                if networkMonitor.offlineEffective {
+                    HStack(spacing: 8) {
+                        Image(systemName: "wifi.slash")
+                            .foregroundColor(.orange)
+                        Text("Оффлайн режим. Показаны сохранённые данные")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                    }
+                }
                 if isLoading {
                     VStack {
                         ProgressView()

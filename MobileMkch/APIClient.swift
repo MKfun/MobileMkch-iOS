@@ -1,4 +1,5 @@
 import Foundation
+import Network
 
 class APIClient: ObservableObject {
     private let baseURL = "https://mkch.pooziqo.xyz"
@@ -152,6 +153,14 @@ class APIClient: ObservableObject {
     }
     
     func getBoards(completion: @escaping (Result<[Board], Error>) -> Void) {
+        if NetworkMonitor.shared.offlineEffective {
+            if let cached = Cache.shared.getBoardsStale(), !cached.isEmpty {
+                completion(.success(cached))
+            } else {
+                completion(.failure(APIError(message: "Оффлайн: нет сохранённых данных", code: 0)))
+            }
+            return
+        }
         if let cachedBoards = Cache.shared.getBoards() {
             completion(.success(cachedBoards))
             return
@@ -164,18 +173,30 @@ class APIClient: ObservableObject {
         session.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
-                    completion(.failure(error))
+                    if let stale: [Board] = Cache.shared.getBoardsStale(), !stale.isEmpty {
+                        completion(.success(stale))
+                    } else {
+                        completion(.failure(error))
+                    }
                     return
                 }
                 
                 guard let httpResponse = response as? HTTPURLResponse,
                       httpResponse.statusCode == 200 else {
-                    completion(.failure(APIError(message: "Ошибка получения досок", code: 0)))
+                     if let stale: [Board] = Cache.shared.getBoardsStale(), !stale.isEmpty {
+                         completion(.success(stale))
+                     } else {
+                         completion(.failure(APIError(message: "Ошибка получения досок", code: 0)))
+                     }
                     return
                 }
                 
                 guard let data = data else {
-                    completion(.failure(APIError(message: "Нет данных", code: 0)))
+                    if let stale: [Board] = Cache.shared.getBoardsStale(), !stale.isEmpty {
+                        completion(.success(stale))
+                    } else {
+                        completion(.failure(APIError(message: "Нет данных", code: 0)))
+                    }
                     return
                 }
                 
@@ -191,6 +212,14 @@ class APIClient: ObservableObject {
     }
     
     func getThreads(forBoard boardCode: String, completion: @escaping (Result<[Thread], Error>) -> Void) {
+        if NetworkMonitor.shared.offlineEffective {
+            if let stale = Cache.shared.getThreadsStale(forBoard: boardCode), !stale.isEmpty {
+                completion(.success(stale))
+            } else {
+                completion(.failure(APIError(message: "Оффлайн: нет сохранённых тредов", code: 0)))
+            }
+            return
+        }
         if let cachedThreads = Cache.shared.getThreads(forBoard: boardCode) {
             completion(.success(cachedThreads))
             return
@@ -203,18 +232,30 @@ class APIClient: ObservableObject {
         session.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
-                    completion(.failure(error))
+                    if let stale = Cache.shared.getThreadsStale(forBoard: boardCode), !stale.isEmpty {
+                        completion(.success(stale))
+                    } else {
+                        completion(.failure(error))
+                    }
                     return
                 }
                 
                 guard let httpResponse = response as? HTTPURLResponse,
                       httpResponse.statusCode == 200 else {
-                    completion(.failure(APIError(message: "Ошибка получения тредов", code: 0)))
+                    if let stale = Cache.shared.getThreadsStale(forBoard: boardCode), !stale.isEmpty {
+                        completion(.success(stale))
+                    } else {
+                        completion(.failure(APIError(message: "Ошибка получения тредов", code: 0)))
+                    }
                     return
                 }
                 
                 guard let data = data else {
-                    completion(.failure(APIError(message: "Нет данных", code: 0)))
+                    if let stale = Cache.shared.getThreadsStale(forBoard: boardCode), !stale.isEmpty {
+                        completion(.success(stale))
+                    } else {
+                        completion(.failure(APIError(message: "Нет данных", code: 0)))
+                    }
                     return
                 }
                 
@@ -230,6 +271,14 @@ class APIClient: ObservableObject {
     }
     
     func getThreadDetail(boardCode: String, threadId: Int, completion: @escaping (Result<ThreadDetail, Error>) -> Void) {
+        if NetworkMonitor.shared.offlineEffective {
+            if let stale = Cache.shared.getThreadDetailStale(forThreadId: threadId) {
+                completion(.success(stale))
+            } else {
+                completion(.failure(APIError(message: "Оффлайн: нет сохранённого треда", code: 0)))
+            }
+            return
+        }
         if let cachedThread = Cache.shared.getThreadDetail(forThreadId: threadId) {
             completion(.success(cachedThread))
             return
@@ -242,18 +291,30 @@ class APIClient: ObservableObject {
         session.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
-                    completion(.failure(error))
+                    if let stale = Cache.shared.getThreadDetailStale(forThreadId: threadId) {
+                        completion(.success(stale))
+                    } else {
+                        completion(.failure(error))
+                    }
                     return
                 }
                 
                 guard let httpResponse = response as? HTTPURLResponse,
                       httpResponse.statusCode == 200 else {
-                    completion(.failure(APIError(message: "Ошибка получения треда", code: 0)))
+                    if let stale = Cache.shared.getThreadDetailStale(forThreadId: threadId) {
+                        completion(.success(stale))
+                    } else {
+                        completion(.failure(APIError(message: "Ошибка получения треда", code: 0)))
+                    }
                     return
                 }
                 
                 guard let data = data else {
-                    completion(.failure(APIError(message: "Нет данных", code: 0)))
+                    if let stale = Cache.shared.getThreadDetailStale(forThreadId: threadId) {
+                        completion(.success(stale))
+                    } else {
+                        completion(.failure(APIError(message: "Нет данных", code: 0)))
+                    }
                     return
                 }
                 
@@ -269,6 +330,14 @@ class APIClient: ObservableObject {
     }
     
     func getComments(boardCode: String, threadId: Int, completion: @escaping (Result<[Comment], Error>) -> Void) {
+        if NetworkMonitor.shared.offlineEffective {
+            if let stale = Cache.shared.getCommentsStale(forThreadId: threadId), !stale.isEmpty {
+                completion(.success(stale))
+            } else {
+                completion(.failure(APIError(message: "Оффлайн: нет сохранённых комментариев", code: 0)))
+            }
+            return
+        }
         if let cachedComments = Cache.shared.getComments(forThreadId: threadId) {
             completion(.success(cachedComments))
             return
@@ -281,18 +350,30 @@ class APIClient: ObservableObject {
         session.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
-                    completion(.failure(error))
+                    if let stale = Cache.shared.getCommentsStale(forThreadId: threadId), !stale.isEmpty {
+                        completion(.success(stale))
+                    } else {
+                        completion(.failure(error))
+                    }
                     return
                 }
                 
                 guard let httpResponse = response as? HTTPURLResponse,
                       httpResponse.statusCode == 200 else {
-                    completion(.failure(APIError(message: "Ошибка получения комментариев", code: 0)))
+                    if let stale = Cache.shared.getCommentsStale(forThreadId: threadId), !stale.isEmpty {
+                        completion(.success(stale))
+                    } else {
+                        completion(.failure(APIError(message: "Ошибка получения комментариев", code: 0)))
+                    }
                     return
                 }
                 
                 guard let data = data else {
-                    completion(.failure(APIError(message: "Нет данных", code: 0)))
+                    if let stale = Cache.shared.getCommentsStale(forThreadId: threadId), !stale.isEmpty {
+                        completion(.success(stale))
+                    } else {
+                        completion(.failure(APIError(message: "Нет данных", code: 0)))
+                    }
                     return
                 }
                 

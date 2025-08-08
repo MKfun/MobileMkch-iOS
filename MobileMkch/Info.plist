@@ -10,6 +10,8 @@
 	<array>
 		<string>background-processing</string>
 		<string>background-fetch</string>
+		<string>fetch</string>
+		<string>processing</string>
 	</array>
 </dict>
 </plist>

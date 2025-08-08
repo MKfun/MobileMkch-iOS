@@ -8,11 +8,12 @@
 import WidgetKit
 import AppIntents
 
-struct ConfigurationAppIntent: WidgetConfigurationIntent {
-    static var title: LocalizedStringResource { "Configuration" }
-    static var description: IntentDescription { "This is an example widget." }
+struct ConfigurationAppIntent: WidgetConfigurationIntent, AppIntent {
+    static var title: LocalizedStringResource { "Конфигурация виджета" }
+    static var description: IntentDescription { "Выберите доску для загрузки в случае отсутствия доступа к данным приложения." }
 
-    // An example configurable parameter.
-    @Parameter(title: "Favorite Emoji", default: "😃")
-    var favoriteEmoji: String
+    @Parameter(title: "Код доски", default: "b")
+    var boardCode: String
+
+    static var openAppWhenRun: Bool { true }
 }

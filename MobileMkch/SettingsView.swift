@@ -5,6 +5,7 @@ import Darwin
 struct SettingsView: View {
     @EnvironmentObject var settings: Settings
     @EnvironmentObject var apiClient: APIClient
+    @EnvironmentObject var networkMonitor: NetworkMonitor
     
     @State private var showingAbout = false
     @State private var showingInfo = false
@@ -110,6 +111,26 @@ struct SettingsView: View {
                     }
                 }
                 
+                Section("Оффлайн режим") {
+                    HStack {
+                        Image(systemName: "wifi.slash")
+                            .foregroundColor(.orange)
+                            .frame(width: 24)
+                        Toggle("Принудительно оффлайн", isOn: $settings.offlineMode)
+                    }
+                    .onChange(of: settings.offlineMode) { newValue in
+                        if networkMonitor.forceOffline != newValue {
+                            networkMonitor.forceOffline = newValue
+                            settings.saveSettings()
+                        }
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(networkMonitor.offlineEffective ? "Сейчас оффлайн: показываем кэш" : "Онлайн: будут загружаться свежие данные")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
                 Section("Аутентификация") {
                     HStack {
                         Image(systemName: "lock.shield")

@@ -1,4 +1,5 @@
 import Foundation
+import WidgetKit
 
 class Settings: ObservableObject {
     @Published var theme: String = "dark"
@@ -14,12 +15,14 @@ class Settings: ObservableObject {
     @Published var notificationsEnabled: Bool = false
     @Published var notificationInterval: Int = 300
     @Published var favoriteThreads: [FavoriteThread] = []
+    @Published var offlineMode: Bool = false
     
     private let userDefaults = UserDefaults.standard
     private let settingsKey = "MobileMkchSettings"
     
     init() {
         loadSettings()
+        mirrorStateToAppGroup()
     }
     
     func loadSettings() {
@@ -38,7 +41,9 @@ class Settings: ObservableObject {
             self.notificationsEnabled = settings.notificationsEnabled
             self.notificationInterval = settings.notificationInterval
             self.favoriteThreads = settings.favoriteThreads
+            self.offlineMode = settings.offlineMode ?? false
         }
+        mirrorStateToAppGroup()
     }
     
     func saveSettings() {
@@ -56,11 +61,15 @@ class Settings: ObservableObject {
             notificationsEnabled: notificationsEnabled,
             notificationInterval: notificationInterval,
             favoriteThreads: favoriteThreads
+            ,
+            offlineMode: offlineMode
         )
         
         if let data = try? JSONEncoder().encode(settingsData) {
             userDefaults.set(data, forKey: settingsKey)
         }
+        mirrorStateToAppGroup()
+        WidgetCenter.shared.reloadAllTimelines()
     }
     
     func resetSettings() {
@@ -77,6 +86,7 @@ class Settings: ObservableObject {
         notificationsEnabled = false
         notificationInterval = 300
         favoriteThreads = []
+        offlineMode = false
         saveSettings()
     }
     
@@ -100,6 +110,17 @@ class Settings: ObservableObject {
     func isFavorite(_ threadId: Int, boardCode: String) -> Bool {
         return favoriteThreads.contains { $0.id == threadId && $0.board == boardCode }
     }
+    
+    private func mirrorStateToAppGroup() {
+        guard let shared = AppGroup.defaults else { return }
+        let mapped = favoriteThreads.map { FavoriteThreadWidget(id: $0.id, title: $0.title, board: $0.board, boardDescription: $0.boardDescription, addedDate: $0.addedDate) }
+        if let encodedFavorites = try? JSONEncoder().encode(mapped) {
+            shared.set(encodedFavorites, forKey: "favoriteThreads")
+        }
+        shared.set(offlineMode, forKey: "offlineMode")
+        shared.set(lastBoard, forKey: "lastBoard")
+        WidgetCenter.shared.reloadTimelines(ofKind: "FavoritesWidget")
+    }
 }
 
 struct SettingsData: Codable {
@@ -116,4 +137,5 @@ struct SettingsData: Codable {
     let notificationsEnabled: Bool
     let notificationInterval: Int
     let favoriteThreads: [FavoriteThread]
+    let offlineMode: Bool?
 } 

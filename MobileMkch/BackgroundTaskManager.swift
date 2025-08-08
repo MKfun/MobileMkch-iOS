@@ -6,12 +6,10 @@ class BackgroundTaskManager {
     static let shared = BackgroundTaskManager()
     
     private var backgroundTaskIdentifier: String {
-        // Используем идентификатор из Info.plist (BGTaskSchedulerPermittedIdentifiers)
         if let identifiers = Bundle.main.object(forInfoDictionaryKey: "BGTaskSchedulerPermittedIdentifiers") as? [String],
            let first = identifiers.first {
             return first
         }
-        // Фоллбек на значение по умолчанию
         return "com.mkch.MobileMkch.backgroundrefresh"
     }
     private let notificationManager = NotificationManager.shared

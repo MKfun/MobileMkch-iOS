@@ -14,6 +14,7 @@ struct MobileMkchApp: App {
     @StateObject private var apiClient = APIClient()
     @StateObject private var crashHandler = CrashHandler.shared
     @StateObject private var notificationManager = NotificationManager.shared
+    @StateObject private var networkMonitor = NetworkMonitor.shared
     
     private func setupBackgroundTasks() {
         if let bundleIdentifier = Bundle.main.bundleIdentifier {
@@ -52,6 +53,7 @@ struct MobileMkchApp: App {
                         .environmentObject(settings)
                         .environmentObject(apiClient)
                         .environmentObject(notificationManager)
+                        .environmentObject(networkMonitor)
                         .preferredColorScheme(settings.theme == "dark" ? .dark : .light)
                 }
             }

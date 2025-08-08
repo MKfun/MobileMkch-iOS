@@ -3,6 +3,7 @@ import SwiftUI
 struct BoardsView: View {
     @EnvironmentObject var settings: Settings
     @EnvironmentObject var apiClient: APIClient
+    @EnvironmentObject var networkMonitor: NetworkMonitor
     @State private var boards: [Board] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -10,6 +11,15 @@ struct BoardsView: View {
     var body: some View {
         NavigationView {
             List {
+            if networkMonitor.offlineEffective {
+                HStack(spacing: 8) {
+                    Image(systemName: "wifi.slash")
+                        .foregroundColor(.orange)
+                    Text("Оффлайн режим. Показаны сохранённые данные")
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                }
+            }
             if isLoading {
                 HStack {
                     ProgressView()
