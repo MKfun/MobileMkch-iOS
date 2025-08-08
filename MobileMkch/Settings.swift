@@ -16,6 +16,14 @@ class Settings: ObservableObject {
     @Published var notificationInterval: Int = 300
     @Published var favoriteThreads: [FavoriteThread] = []
     @Published var offlineMode: Bool = false
+    @Published var liveActivityEnabled: Bool = false
+    @Published var liveActivityShowTitle: Bool = true
+    @Published var liveActivityShowLastComment: Bool = true
+    @Published var liveActivityShowCommentCount: Bool = true
+    @Published var liveActivityTickerEnabled: Bool = false
+    @Published var liveActivityTickerRandomBoard: Bool = true
+    @Published var liveActivityTickerBoardCode: String = "b"
+    @Published var liveActivityTickerInterval: Int = 15
     
     private let userDefaults = UserDefaults.standard
     private let settingsKey = "MobileMkchSettings"
@@ -42,6 +50,14 @@ class Settings: ObservableObject {
             self.notificationInterval = settings.notificationInterval
             self.favoriteThreads = settings.favoriteThreads
             self.offlineMode = settings.offlineMode ?? false
+            self.liveActivityEnabled = settings.liveActivityEnabled ?? false
+            self.liveActivityShowTitle = settings.liveActivityShowTitle ?? true
+            self.liveActivityShowLastComment = settings.liveActivityShowLastComment ?? true
+            self.liveActivityShowCommentCount = settings.liveActivityShowCommentCount ?? true
+            self.liveActivityTickerEnabled = settings.liveActivityTickerEnabled ?? false
+            self.liveActivityTickerRandomBoard = settings.liveActivityTickerRandomBoard ?? true
+            self.liveActivityTickerBoardCode = settings.liveActivityTickerBoardCode ?? "b"
+            self.liveActivityTickerInterval = settings.liveActivityTickerInterval ?? 15
         }
         mirrorStateToAppGroup()
     }
@@ -63,6 +79,15 @@ class Settings: ObservableObject {
             favoriteThreads: favoriteThreads
             ,
             offlineMode: offlineMode
+            ,
+            liveActivityEnabled: liveActivityEnabled,
+            liveActivityShowTitle: liveActivityShowTitle,
+            liveActivityShowLastComment: liveActivityShowLastComment,
+            liveActivityShowCommentCount: liveActivityShowCommentCount,
+            liveActivityTickerEnabled: liveActivityTickerEnabled,
+            liveActivityTickerRandomBoard: liveActivityTickerRandomBoard,
+            liveActivityTickerBoardCode: liveActivityTickerBoardCode,
+            liveActivityTickerInterval: liveActivityTickerInterval
         )
         
         if let data = try? JSONEncoder().encode(settingsData) {
@@ -138,4 +163,12 @@ struct SettingsData: Codable {
     let notificationInterval: Int
     let favoriteThreads: [FavoriteThread]
     let offlineMode: Bool?
+    let liveActivityEnabled: Bool?
+    let liveActivityShowTitle: Bool?
+    let liveActivityShowLastComment: Bool?
+    let liveActivityShowCommentCount: Bool?
+    let liveActivityTickerEnabled: Bool?
+    let liveActivityTickerRandomBoard: Bool?
+    let liveActivityTickerBoardCode: String?
+    let liveActivityTickerInterval: Int?
 } 

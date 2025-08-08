@@ -11,6 +11,7 @@ struct ThreadDetailView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showingAddComment = false
+    @State private var activityOn = false
     
     var body: some View {
         ScrollView {
@@ -88,8 +89,30 @@ struct ThreadDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Обновить") {
-                    loadThreadDetail()
+                HStack {
+                    Button("Обновить") { loadThreadDetail() }
+                    if #available(iOS 16.1, *) {
+                        Toggle("", isOn: $activityOn)
+                            .toggleStyle(SwitchToggleStyle(tint: .blue))
+                            .labelsHidden()
+                            .onChange(of: activityOn) { newValue in
+                                guard settings.liveActivityEnabled else { return }
+                                if newValue {
+                                    if let detail = threadDetail {
+                                        LiveActivityManager.shared.start(for: detail, comments: comments, settings: settings)
+                                    }
+                                } else {
+                                    LiveActivityManager.shared.end(threadId: thread.id)
+                                }
+                            }
+                            .onAppear {
+                                if settings.liveActivityEnabled {
+                                    if #available(iOS 16.1, *) {
+                                        activityOn = LiveActivityManager.shared.isActive(threadId: thread.id)
+                                    }
+                                }
+                            }
+                    }
                 }
             }
         }
@@ -117,6 +140,9 @@ struct ThreadDetailView: View {
                 case .success(let (detail, loadedComments)):
                     self.threadDetail = detail
                     self.comments = loadedComments
+                    if #available(iOS 16.1, *), settings.liveActivityEnabled, activityOn {
+                        LiveActivityManager.shared.update(threadId: thread.id, comments: loadedComments, settings: settings)
+                    }
                 case .failure(let error):
                     self.errorMessage = error.localizedDescription
                 }

@@ -7,6 +7,7 @@
 
 import WidgetKit
 import SwiftUI
+import ActivityKit
 
 private let appGroupId = "group.mobilemkch"
 
@@ -176,5 +177,101 @@ struct FavoritesWidget: Widget {
         }
         .configurationDisplayName("Избранное MobileMkch")
         .description("Показывает избранные треды или топ по выбранной доске.")
+    }
+}
+
+@available(iOS 16.1, *)
+struct ThreadActivityAttributes: ActivityAttributes {
+    public struct ContentState: Codable, Hashable {
+        var latestCommentText: String
+        var commentsCount: Int
+        var showTitle: Bool
+        var showLastComment: Bool
+        var showCommentCount: Bool
+        var currentTitle: String
+        var currentBoard: String
+    }
+
+    var threadId: Int
+    var title: String
+    var board: String
+}
+
+@available(iOS 16.1, *)
+struct ThreadLiveActivity: Widget {
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: ThreadActivityAttributes.self) { context in
+            ThreadLiveActivityView(context: context)
+        } dynamicIsland: { context in
+            DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    Text("/\(context.state.currentBoard)/")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+                DynamicIslandExpandedRegion(.center) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        if context.state.showTitle {
+                            Text(context.state.currentTitle)
+                                .font(.footnote)
+                                .lineLimit(2)
+                        }
+                        if context.state.showLastComment && !context.state.latestCommentText.isEmpty {
+                            Text(context.state.latestCommentText)
+                                .font(.caption2)
+                                .lineLimit(2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                DynamicIslandExpandedRegion(.trailing) {
+                    if context.state.showCommentCount {
+                        Label("\(context.state.commentsCount)", systemImage: "text.bubble")
+                            .font(.caption)
+                    }
+                }
+            } compactLeading: {
+                Text("/\(context.state.currentBoard)/")
+                    .font(.caption2)
+            } compactTrailing: {
+                if context.state.showCommentCount {
+                    Text("\(context.state.commentsCount)")
+                        .font(.caption2)
+                }
+            } minimal: {
+                Image(systemName: "text.bubble")
+            }
+        }
+    }
+}
+
+@available(iOS 16.1, *)
+private struct ThreadLiveActivityView: View {
+    let context: ActivityViewContext<ThreadActivityAttributes>
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Text("/\(context.state.currentBoard)/")
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                if context.state.showCommentCount {
+                    Label("\(context.state.commentsCount)", systemImage: "text.bubble")
+                        .font(.caption)
+                }
+                Spacer()
+            }
+            if context.state.showTitle {
+                Text(context.state.currentTitle)
+                    .font(.footnote)
+                    .lineLimit(2)
+            }
+            if context.state.showLastComment && !context.state.latestCommentText.isEmpty {
+                Text(context.state.latestCommentText)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+            }
+        }
+        .padding(12)
     }
 }

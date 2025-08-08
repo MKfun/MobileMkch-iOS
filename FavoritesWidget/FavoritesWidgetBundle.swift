@@ -7,10 +7,14 @@
 
 import WidgetKit
 import SwiftUI
+import ActivityKit
 
 @main
 struct FavoritesWidgetBundle: WidgetBundle {
     var body: some Widget {
         FavoritesWidget()
+        if #available(iOS 16.1, *) {
+            ThreadLiveActivity()
+        }
     }
 }

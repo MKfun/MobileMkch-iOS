@@ -1,12 +1,14 @@
 import SwiftUI
 import Combine
 import Darwin
+import ActivityKit
 
 struct SettingsView: View {
     @EnvironmentObject var settings: Settings
     @EnvironmentObject var apiClient: APIClient
     @EnvironmentObject var networkMonitor: NetworkMonitor
     
+    @State private var isTickerRunning = false
     @State private var showingAbout = false
     @State private var showingInfo = false
     @State private var testKeyResult: String?
@@ -203,6 +205,65 @@ struct SettingsView: View {
                         }
                         .padding(.trailing, 8)
                     )
+                    if #available(iOS 16.1, *) {
+                        Toggle("Live Activity", isOn: $settings.liveActivityEnabled)
+                            .onReceive(Just(settings.liveActivityEnabled)) { _ in
+                                settings.saveSettings()
+                            }
+                        if settings.liveActivityEnabled {
+                            Toggle("Показывать заголовок", isOn: $settings.liveActivityShowTitle)
+                                .onReceive(Just(settings.liveActivityShowTitle)) { _ in settings.saveSettings() }
+                            Toggle("Показывать последний коммент", isOn: $settings.liveActivityShowLastComment)
+                                .onReceive(Just(settings.liveActivityShowLastComment)) { _ in settings.saveSettings() }
+                            Toggle("Показывать счётчик", isOn: $settings.liveActivityShowCommentCount)
+                                .onReceive(Just(settings.liveActivityShowCommentCount)) { _ in settings.saveSettings() }
+                            Toggle("Тикер случайных тредов", isOn: $settings.liveActivityTickerEnabled)
+                                .onReceive(Just(settings.liveActivityTickerEnabled)) { _ in settings.saveSettings() }
+                            if settings.liveActivityTickerEnabled {
+                                Toggle("Случайная борда", isOn: $settings.liveActivityTickerRandomBoard)
+                                    .onReceive(Just(settings.liveActivityTickerRandomBoard)) { _ in settings.saveSettings() }
+                                if !settings.liveActivityTickerRandomBoard {
+                                    HStack {
+                                        Text("Код борды")
+                                        TextField("b", text: $settings.liveActivityTickerBoardCode)
+                                            .textInputAutocapitalization(.never)
+                                            .disableAutocorrection(true)
+                                    }
+                                    .onReceive(Just(settings.liveActivityTickerBoardCode)) { _ in settings.saveSettings() }
+                                }
+                                HStack {
+                                    Text("Интервал, сек")
+                                    Spacer()
+                                    Stepper(value: $settings.liveActivityTickerInterval, in: 5...120, step: 5) {
+                                        Text("\(settings.liveActivityTickerInterval)")
+                                    }
+                                }
+                                .onReceive(Just(settings.liveActivityTickerInterval)) { _ in settings.saveSettings() }
+                                HStack(spacing: 12) {
+                                    Button("Старт тикера") {
+                                        LiveActivityManager.shared.startTicker(settings: settings, apiClient: apiClient)
+                                        isTickerRunning = true
+                                    }
+                                        .buttonStyle(.bordered)
+                                        .tint(.green)
+                                    Button("Стоп тикера") {
+                                        LiveActivityManager.shared.stopTicker()
+                                        isTickerRunning = false
+                                    }
+                                        .buttonStyle(.bordered)
+                                        .tint(.red)
+                                    Spacer()
+                                    Text(isTickerRunning ? "Работает" : "Остановлен")
+                                        .font(.caption)
+                                        .foregroundColor(isTickerRunning ? .green : .secondary)
+                                }
+                                .onAppear { isTickerRunning = LiveActivityManager.shared.isTickerRunning }
+                            }
+                            Text("В фоне частые обновления ограничены системой")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
                 
                 Section("Управление кэшем") {
@@ -434,6 +495,7 @@ struct AboutView: View {
 struct DebugMenuView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var notificationManager: NotificationManager
+    @State private var liveActivityStarted = false
     
     var body: some View {
         NavigationView {
@@ -455,6 +517,25 @@ struct DebugMenuView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .foregroundColor(.blue)
+                    if #available(iOS 16.1, *) {
+                        Button(liveActivityStarted ? "Остановить Live Activity" : "Тест Live Activity") {
+                            if liveActivityStarted {
+                                LiveActivityManager.shared.end(threadId: 999999)
+                                liveActivityStarted = false
+                            } else {
+                                let detail = ThreadDetail(id: 999999, creation: "2023-01-01T00:00:00Z", title: "Тестовый тред", text: "", board: "b", files: [])
+                                let comments = [Comment(id: 1, text: "Привет из Live Activity", creation: "2023-01-01T00:00:00Z", files: [])]
+                                var s = Settings()
+                                s.liveActivityEnabled = true
+                                s.liveActivityShowTitle = true
+                                s.liveActivityShowLastComment = true
+                                s.liveActivityShowCommentCount = true
+                                LiveActivityManager.shared.start(for: detail, comments: comments, settings: s)
+                                liveActivityStarted = true
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
                 }
                 
                 Spacer()
