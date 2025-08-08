@@ -89,29 +89,7 @@ struct ThreadDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                HStack {
-                    Button("Обновить") { loadThreadDetail() }
-                    if #available(iOS 16.1, *) {
-                        Toggle("", isOn: $activityOn)
-                            .toggleStyle(SwitchToggleStyle(tint: .blue))
-                            .labelsHidden()
-                            .onChange(of: activityOn) { newValue in
-                                guard settings.liveActivityEnabled else { return }
-                                if newValue {
-                                    if let detail = threadDetail {
-                                        LiveActivityManager.shared.start(for: detail, comments: comments, settings: settings)
-                                    }
-                                } else {
-                                    LiveActivityManager.shared.end(threadId: thread.id)
-                                }
-                            }
-                            .onAppear {
-                                if settings.liveActivityEnabled {
-                                                                    activityOn = LiveActivityManager.shared.isActive(threadId: thread.id)
-                                }
-                            }
-                    }
-                }
+                Button("Обновить") { loadThreadDetail() }
             }
         }
         .sheet(isPresented: $showingAddComment) {

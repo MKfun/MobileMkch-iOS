@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 struct CreateThreadView: View {
     let boardCode: String
@@ -13,6 +14,8 @@ struct CreateThreadView: View {
     @State private var showingSuccess = false
     @FocusState private var titleFocused: Bool
     @FocusState private var textFocused: Bool
+    @State private var pickedImages: [UIImage] = []
+    @State private var showPicker: Bool = false
     
     var body: some View {
         NavigationView {
@@ -41,6 +44,38 @@ struct CreateThreadView: View {
                                 )
                         }
                         
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Фото")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            Button {
+                                showPicker = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "photo.on.rectangle")
+                                    Text("Выбрать фото")
+                                    Spacer()
+                                }
+                                .padding(12)
+                                .background(Color(.secondarySystemBackground))
+                                .cornerRadius(12)
+                            }
+                            if !pickedImages.isEmpty {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 8) {
+                                        ForEach(Array(pickedImages.enumerated()), id: \.offset) { _, img in
+                                            Image(uiImage: img)
+                                                .resizable()
+                                                .scaledToFill()
+                                                .frame(width: 64, height: 64)
+                                                .clipped()
+                                                .cornerRadius(8)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Text("Содержание")
@@ -149,6 +184,11 @@ struct CreateThreadView: View {
             } message: {
                 Text("Тред создан")
             }
+            .sheet(isPresented: $showPicker) {
+                ImagePickerView(selectionLimit: 4) { images in
+                    pickedImages = images
+                }
+            }
         }
     }
     
@@ -162,7 +202,8 @@ struct CreateThreadView: View {
             boardCode: boardCode,
             title: title,
             text: text,
-            passcode: settings.passcode
+            passcode: settings.passcode,
+            files: buildUploadFiles()
         ) { error in
             DispatchQueue.main.async {
                 self.isLoading = false
@@ -174,6 +215,22 @@ struct CreateThreadView: View {
                 }
             }
         }
+    }
+
+    private func buildUploadFiles() -> [UploadFile] {
+        var result: [UploadFile] = []
+        for (idx, img) in pickedImages.enumerated() {
+            if let data = img.jpegData(compressionQuality: 0.9) {
+                let file = UploadFile(
+                    name: "files",
+                    filename: "photo_\(idx + 1).jpg",
+                    mimeType: "image/jpeg",
+                    data: data
+                )
+                result.append(file)
+            }
+        }
+        return result
     }
 }
 

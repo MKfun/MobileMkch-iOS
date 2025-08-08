@@ -1,6 +1,13 @@
 import Foundation
 import Network
 
+struct UploadFile {
+    let name: String
+    let filename: String
+    let mimeType: String
+    let data: Data
+}
+
 class APIClient: ObservableObject {
     private let baseURL = "https://mkch.pooziqo.xyz"
     private let apiURL = "https://mkch.pooziqo.xyz/api"
@@ -437,21 +444,21 @@ class APIClient: ObservableObject {
         }
     }
     
-    func createThread(boardCode: String, title: String, text: String, passcode: String, completion: @escaping (Error?) -> Void) {
+    func createThread(boardCode: String, title: String, text: String, passcode: String, files: [UploadFile] = [], completion: @escaping (Error?) -> Void) {
         if !passcode.isEmpty {
             loginWithPasscode(passcode: passcode) { error in
                 if let error = error {
                     completion(error)
                     return
                 }
-                self.performCreateThread(boardCode: boardCode, title: title, text: text, completion: completion)
+                self.performCreateThread(boardCode: boardCode, title: title, text: text, files: files, completion: completion)
             }
         } else {
-            performCreateThread(boardCode: boardCode, title: title, text: text, completion: completion)
+            performCreateThread(boardCode: boardCode, title: title, text: text, files: files, completion: completion)
         }
     }
     
-    private func performCreateThread(boardCode: String, title: String, text: String, completion: @escaping (Error?) -> Void) {
+    private func performCreateThread(boardCode: String, title: String, text: String, files: [UploadFile] = [], completion: @escaping (Error?) -> Void) {
         let formURL = "\(baseURL)/boards/board/\(boardCode)/new"
         let url = URL(string: formURL)!
         
@@ -485,19 +492,30 @@ class APIClient: ObservableObject {
                     return
                 }
                 
-                var formData = URLComponents()
-                formData.queryItems = [
-                    URLQueryItem(name: "csrfmiddlewaretoken", value: csrfToken),
-                    URLQueryItem(name: "title", value: title),
-                    URLQueryItem(name: "text", value: text)
-                ]
-                
                 var postRequest = URLRequest(url: url)
                 postRequest.httpMethod = "POST"
-                postRequest.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
                 postRequest.setValue(formURL, forHTTPHeaderField: "Referer")
                 postRequest.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
-                postRequest.httpBody = formData.query?.data(using: .utf8)
+
+                if files.isEmpty {
+                    var formData = URLComponents()
+                    formData.queryItems = [
+                        URLQueryItem(name: "csrfmiddlewaretoken", value: csrfToken),
+                        URLQueryItem(name: "title", value: title),
+                        URLQueryItem(name: "text", value: text)
+                    ]
+                    postRequest.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+                    postRequest.httpBody = formData.query?.data(using: .utf8)
+                } else {
+                    let boundary = "Boundary-\(UUID().uuidString)"
+                    postRequest.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+                    let body = self.buildMultipartBody(parameters: [
+                        "csrfmiddlewaretoken": csrfToken,
+                        "title": title,
+                        "text": text
+                    ], files: files, boundary: boundary)
+                    postRequest.httpBody = body
+                }
                 
                 self.session.dataTask(with: postRequest) { _, postResponse, postError in
                     DispatchQueue.main.async {
@@ -520,21 +538,21 @@ class APIClient: ObservableObject {
         }.resume()
     }
     
-    func addComment(boardCode: String, threadId: Int, text: String, passcode: String, completion: @escaping (Error?) -> Void) {
+    func addComment(boardCode: String, threadId: Int, text: String, passcode: String, files: [UploadFile] = [], completion: @escaping (Error?) -> Void) {
         if !passcode.isEmpty {
             loginWithPasscode(passcode: passcode) { error in
                 if let error = error {
                     completion(error)
                     return
                 }
-                self.performAddComment(boardCode: boardCode, threadId: threadId, text: text, completion: completion)
+                self.performAddComment(boardCode: boardCode, threadId: threadId, text: text, files: files, completion: completion)
             }
         } else {
-            performAddComment(boardCode: boardCode, threadId: threadId, text: text, completion: completion)
+            performAddComment(boardCode: boardCode, threadId: threadId, text: text, files: files, completion: completion)
         }
     }
     
-    private func performAddComment(boardCode: String, threadId: Int, text: String, completion: @escaping (Error?) -> Void) {
+    private func performAddComment(boardCode: String, threadId: Int, text: String, files: [UploadFile] = [], completion: @escaping (Error?) -> Void) {
         let formURL = "\(baseURL)/boards/board/\(boardCode)/thread/\(threadId)/comment"
         let url = URL(string: formURL)!
         
@@ -568,18 +586,28 @@ class APIClient: ObservableObject {
                     return
                 }
                 
-                var formData = URLComponents()
-                formData.queryItems = [
-                    URLQueryItem(name: "csrfmiddlewaretoken", value: csrfToken),
-                    URLQueryItem(name: "text", value: text)
-                ]
-                
                 var postRequest = URLRequest(url: url)
                 postRequest.httpMethod = "POST"
-                postRequest.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
                 postRequest.setValue(formURL, forHTTPHeaderField: "Referer")
                 postRequest.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
-                postRequest.httpBody = formData.query?.data(using: .utf8)
+
+                if files.isEmpty {
+                    var formData = URLComponents()
+                    formData.queryItems = [
+                        URLQueryItem(name: "csrfmiddlewaretoken", value: csrfToken),
+                        URLQueryItem(name: "text", value: text)
+                    ]
+                    postRequest.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+                    postRequest.httpBody = formData.query?.data(using: .utf8)
+                } else {
+                    let boundary = "Boundary-\(UUID().uuidString)"
+                    postRequest.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+                    let body = self.buildMultipartBody(parameters: [
+                        "csrfmiddlewaretoken": csrfToken,
+                        "text": text
+                    ], files: files, boundary: boundary)
+                    postRequest.httpBody = body
+                }
                 
                 self.session.dataTask(with: postRequest) { _, postResponse, postError in
                     DispatchQueue.main.async {
@@ -617,6 +645,25 @@ class APIClient: ObservableObject {
         return String(html[range])
     }
     
+    private func buildMultipartBody(parameters: [String: String], files: [UploadFile], boundary: String) -> Data {
+        var body = Data()
+        let boundaryPrefix = "--\(boundary)\r\n"
+        for (key, value) in parameters {
+            body.append(boundaryPrefix.data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(value)\r\n".data(using: .utf8)!)
+        }
+        for file in files {
+            body.append(boundaryPrefix.data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(file.name)\"; filename=\"\(file.filename)\"\r\n".data(using: .utf8)!)
+            body.append("Content-Type: \(file.mimeType)\r\n\r\n".data(using: .utf8)!)
+            body.append(file.data)
+            body.append("\r\n".data(using: .utf8)!)
+        }
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        return body
+    }
+
     func checkNewThreads(forBoard boardCode: String, lastKnownThreadId: Int, completion: @escaping (Result<[Thread], Error>) -> Void) {
         let url = URL(string: "\(apiURL)/board/\(boardCode)")!
         var request = URLRequest(url: url)

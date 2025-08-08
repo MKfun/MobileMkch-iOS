@@ -8,6 +8,8 @@
 	</array>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Нужно для выбора фото и загрузки вложений</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>background-processing</string>

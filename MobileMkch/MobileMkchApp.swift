@@ -37,7 +37,7 @@ struct MobileMkchApp: App {
     
     private func handleNotificationLaunch() {
         if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let userInfo = scene.session.userInfo {
+           let _ = scene.session.userInfo {
             print("Приложение запущено из уведомления")
         }
         notificationManager.clearBadge()

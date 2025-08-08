@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 struct AddCommentView: View {
     let boardCode: String
@@ -12,6 +13,8 @@ struct AddCommentView: View {
     @State private var errorMessage: String?
     @State private var showingSuccess = false
     @FocusState private var isTextFocused: Bool
+    @State private var pickedImages: [UIImage] = []
+    @State private var showPicker: Bool = false
     
     var body: some View {
         NavigationView {
@@ -56,6 +59,38 @@ struct AddCommentView: View {
                             )
                     }
                     
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Фото")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        Button {
+                            showPicker = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "photo.on.rectangle")
+                                Text("Выбрать фото")
+                                Spacer()
+                            }
+                            .padding(12)
+                            .background(Color(.secondarySystemBackground))
+                            .cornerRadius(12)
+                        }
+                        if !pickedImages.isEmpty {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(Array(pickedImages.enumerated()), id: \.offset) { _, img in
+                                        Image(uiImage: img)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 64, height: 64)
+                                            .clipped()
+                                            .cornerRadius(8)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     HStack(spacing: 8) {
                         Image(systemName: settings.passcode.isEmpty ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
                             .foregroundColor(settings.passcode.isEmpty ? .orange : .green)
@@ -126,6 +161,11 @@ struct AddCommentView: View {
             } message: {
                 Text("Комментарий добавлен")
             }
+            .sheet(isPresented: $showPicker) {
+                ImagePickerView(selectionLimit: 4) { images in
+                    pickedImages = images
+                }
+            }
         }
     }
     
@@ -139,7 +179,8 @@ struct AddCommentView: View {
             boardCode: boardCode,
             threadId: threadId,
             text: text,
-            passcode: settings.passcode
+            passcode: settings.passcode,
+            files: buildUploadFiles()
         ) { error in
             DispatchQueue.main.async {
                 self.isLoading = false
@@ -151,6 +192,22 @@ struct AddCommentView: View {
                 }
             }
         }
+    }
+
+    private func buildUploadFiles() -> [UploadFile] {
+        var result: [UploadFile] = []
+        for (idx, img) in pickedImages.enumerated() {
+            if let data = img.jpegData(compressionQuality: 0.9) {
+                let file = UploadFile(
+                    name: "files",
+                    filename: "photo_\(idx + 1).jpg",
+                    mimeType: "image/jpeg",
+                    data: data
+                )
+                result.append(file)
+            }
+        }
+        return result
     }
 }
 
