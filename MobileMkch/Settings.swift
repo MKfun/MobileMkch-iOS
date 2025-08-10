@@ -24,6 +24,8 @@ class Settings: ObservableObject {
     @Published var liveActivityTickerRandomBoard: Bool = true
     @Published var liveActivityTickerBoardCode: String = "b"
     @Published var liveActivityTickerInterval: Int = 15
+    @Published var hiddenBannerBoards: [String] = []
+    @Published var shownBannerBoards: [String] = []
     
     private let userDefaults = UserDefaults.standard
     private let settingsKey = "MobileMkchSettings"
@@ -58,6 +60,8 @@ class Settings: ObservableObject {
             self.liveActivityTickerRandomBoard = settings.liveActivityTickerRandomBoard ?? true
             self.liveActivityTickerBoardCode = settings.liveActivityTickerBoardCode ?? "b"
             self.liveActivityTickerInterval = settings.liveActivityTickerInterval ?? 15
+            self.hiddenBannerBoards = settings.hiddenBannerBoards ?? []
+            self.shownBannerBoards = settings.shownBannerBoards ?? []
         }
         mirrorStateToAppGroup()
     }
@@ -87,7 +91,9 @@ class Settings: ObservableObject {
             liveActivityTickerEnabled: liveActivityTickerEnabled,
             liveActivityTickerRandomBoard: liveActivityTickerRandomBoard,
             liveActivityTickerBoardCode: liveActivityTickerBoardCode,
-            liveActivityTickerInterval: liveActivityTickerInterval
+            liveActivityTickerInterval: liveActivityTickerInterval,
+            hiddenBannerBoards: hiddenBannerBoards,
+            shownBannerBoards: shownBannerBoards
         )
         
         if let data = try? JSONEncoder().encode(settingsData) {
@@ -95,6 +101,25 @@ class Settings: ObservableObject {
         }
         mirrorStateToAppGroup()
         WidgetCenter.shared.reloadAllTimelines()
+    }
+    
+    func isBannerHidden(_ boardCode: String) -> Bool {
+        if shownBannerBoards.isEmpty && hiddenBannerBoards.isEmpty {
+            return boardCode != "b"
+        }
+        if shownBannerBoards.contains(boardCode) { return false }
+        return hiddenBannerBoards.contains(boardCode)
+    }
+    
+    func setBannerVisible(_ boardCode: String, visible: Bool) {
+        if visible {
+            if let idx = hiddenBannerBoards.firstIndex(of: boardCode) { hiddenBannerBoards.remove(at: idx) }
+            if !shownBannerBoards.contains(boardCode) { shownBannerBoards.append(boardCode) }
+        } else {
+            if let idx = shownBannerBoards.firstIndex(of: boardCode) { shownBannerBoards.remove(at: idx) }
+            if !hiddenBannerBoards.contains(boardCode) { hiddenBannerBoards.append(boardCode) }
+        }
+        saveSettings()
     }
     
     func resetSettings() {
@@ -171,4 +196,6 @@ struct SettingsData: Codable {
     let liveActivityTickerRandomBoard: Bool?
     let liveActivityTickerBoardCode: String?
     let liveActivityTickerInterval: Int?
+    let hiddenBannerBoards: [String]?
+    let shownBannerBoards: [String]?
 } 

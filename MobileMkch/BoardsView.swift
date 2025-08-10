@@ -36,7 +36,7 @@ struct BoardsView: View {
                         .font(.body)
                         .foregroundColor(.secondary)
                     Button("Повторить") {
-                        loadBoards()
+                        loadBoards(force: true)
                     }
                     .buttonStyle(.bordered)
                 }
@@ -55,21 +55,21 @@ struct BoardsView: View {
             .navigationTitle("Доски mkch")
             .navigationBarTitleDisplayMode(.large)
             .refreshable {
-                loadBoards()
+                loadBoards(force: true)
             }
             .onAppear {
                 if boards.isEmpty {
-                    loadBoards()
+                    loadBoards(force: false)
                 }
             }
         }
     }
     
-    private func loadBoards() {
+    private func loadBoards(force: Bool) {
         isLoading = true
         errorMessage = nil
         
-        apiClient.getBoards { result in
+        apiClient.getBoards(forceReload: force) { result in
             DispatchQueue.main.async {
                 self.isLoading = false
                 
@@ -86,9 +86,22 @@ struct BoardsView: View {
 
 struct BoardRow: View {
     let board: Board
+    @EnvironmentObject var settings: Settings
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
+            if let bannerURL = board.bannerURL, !settings.isBannerHidden(board.code) {
+                GeometryReader { geo in
+                    let width = geo.size.width
+                    let height = min(max(width * 0.2, 56), 120)
+                    AsyncImageView(url: bannerURL, placeholder: Image(systemName: "photo"), contentMode: .fill)
+                        .frame(height: height)
+                        .frame(maxWidth: .infinity)
+                        .clipped()
+                        .cornerRadius(8)
+                }
+                .frame(height: 90)
+            }
             Text("/\(board.code)/")
                 .font(.headline)
                 .foregroundColor(.primary)

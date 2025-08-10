@@ -159,7 +159,7 @@ class APIClient: ObservableObject {
         }.resume()
     }
     
-    func getBoards(completion: @escaping (Result<[Board], Error>) -> Void) {
+    func getBoards(forceReload: Bool = false, completion: @escaping (Result<[Board], Error>) -> Void) {
         if NetworkMonitor.shared.offlineEffective {
             if let cached = Cache.shared.getBoardsStale(), !cached.isEmpty {
                 completion(.success(cached))
@@ -168,7 +168,7 @@ class APIClient: ObservableObject {
             }
             return
         }
-        if let cachedBoards = Cache.shared.getBoards() {
+        if !forceReload, let cachedBoards = Cache.shared.getBoards() {
             completion(.success(cachedBoards))
             return
         }
@@ -176,6 +176,7 @@ class APIClient: ObservableObject {
         let url = URL(string: "\(apiURL)/boards/")!
         var request = URLRequest(url: url)
         request.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
+        print("GET \(url.absoluteString)")
         
         session.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
@@ -209,6 +210,13 @@ class APIClient: ObservableObject {
                 
                 do {
                     let boards = try JSONDecoder().decode([Board].self, from: data)
+                    let banners = boards.compactMap { $0.bannerURL }
+                    if !banners.isEmpty {
+                        print("Найдено баннеров: \(banners.count)")
+                        for b in banners { print("Баннер: \(b)") }
+                    } else {
+                        print("Баннеры не найдены")
+                    }
                     Cache.shared.setBoards(boards)
                     completion(.success(boards))
                 } catch {

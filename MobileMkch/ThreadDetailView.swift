@@ -146,7 +146,7 @@ struct ThreadContentView: View {
             }
             
             if showFiles && !thread.files.isEmpty {
-                FilesView(files: thread.files)
+                FilesView(files: thread.files, dynamic: true)
             }
             
             if !thread.text.isEmpty {
