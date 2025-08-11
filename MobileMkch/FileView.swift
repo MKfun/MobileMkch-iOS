@@ -2,33 +2,17 @@ import SwiftUI
 
 struct FileView: View {
     let fileInfo: FileInfo
-    var dynamic: Bool = false
     @State private var showingFullScreen = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if fileInfo.isImage {
-                if dynamic {
-                    if fileInfo.isGIF {
-                        AsyncImageView(url: fileInfo.url, contentMode: .fit, dynamic: true)
-                            .frame(maxWidth: .infinity)
-                            .clipped()
-                            .contentShape(Rectangle())
-                            .onTapGesture { showingFullScreen = true }
-                    } else {
-                        AsyncImageView(url: fileInfo.url, contentMode: .fit, dynamic: false)
-                            .frame(maxWidth: .infinity)
-                            .clipped()
-                            .contentShape(Rectangle())
-                            .onTapGesture { showingFullScreen = true }
+                AsyncImageView(url: fileInfo.url, contentMode: .fit)
+                    .frame(maxHeight: 200)
+                    .clipped()
+                    .onTapGesture {
+                        showingFullScreen = true
                     }
-                } else {
-                    AsyncImageView(url: fileInfo.url, contentMode: .fit, dynamic: false)
-                        .frame(maxHeight: 200)
-                        .clipped()
-                        .contentShape(Rectangle())
-                        .onTapGesture { showingFullScreen = true }
-                }
             } else if fileInfo.isVideo {
                 VStack {
                     Image(systemName: "play.rectangle")
@@ -81,8 +65,7 @@ struct NativeFullScreenImageView: View {
             Color.black.ignoresSafeArea()
             
             GeometryReader { geometry in
-                AsyncImageView(url: url, contentMode: .fit, dynamic: true)
-                    .frame(width: geometry.size.width)
+                AsyncImageView(url: url, contentMode: .fit)
                     .scaleEffect(scale)
                     .offset(offset)
                     .opacity(isDragging ? 0.8 : 1.0)
@@ -103,7 +86,7 @@ struct NativeFullScreenImageView: View {
                                 }
                             }
                     )
-                    .highPriorityGesture(
+                    .gesture(
                         DragGesture()
                             .onChanged { value in
                                 if scale > 1 {
@@ -194,7 +177,6 @@ struct NativeFullScreenImageView: View {
 
 struct FilesView: View {
     let files: [String]
-    var dynamic: Bool = false
     
     var body: some View {
         if !files.isEmpty {
@@ -207,7 +189,7 @@ struct FilesView: View {
                     GridItem(.flexible())
                 ], spacing: 12) {
                     ForEach(files, id: \.self) { file in
-                        FileView(fileInfo: FileInfo(filePath: file), dynamic: dynamic)
+                        FileView(fileInfo: FileInfo(filePath: file))
                     }
                 }
             }

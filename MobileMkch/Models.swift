@@ -7,23 +7,8 @@ private enum DateFormatterCache {
 struct Board: Codable, Identifiable {
     let code: String
     let description: String
-    var banner: String?
     
     var id: String { code }
-
-    var bannerURL: String? {
-        guard let banner = banner, !banner.isEmpty else { return nil }
-        if banner.hasPrefix("http://") || banner.hasPrefix("https://") {
-            return banner
-        }
-        return "https://mkch.pooziqo.xyz" + banner
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case code
-        case description
-        case banner
-    }
 }
 
 struct Thread: Codable, Identifiable {
@@ -82,16 +67,14 @@ struct FileInfo {
     let filename: String
     let isImage: Bool
     let isVideo: Bool
-    let isGIF: Bool
     
     init(filePath: String) {
         self.url = "https://mkch.pooziqo.xyz" + filePath
         self.filename = String(filePath.split(separator: "/").last ?? "")
         
         let ext = filePath.lowercased()
-        self.isGIF = ext.hasSuffix(".gif")
         self.isImage = ext.hasSuffix(".jpg") || ext.hasSuffix(".jpeg") || 
-                      ext.hasSuffix(".png") || self.isGIF || 
+                      ext.hasSuffix(".png") || ext.hasSuffix(".gif") || 
                       ext.hasSuffix(".webp")
         self.isVideo = ext.hasSuffix(".mp4") || ext.hasSuffix(".webm")
     }

@@ -11,7 +11,6 @@ struct ThreadsView: View {
     @State private var errorMessage: String?
     @State private var currentPage = 0
     @State private var showingCreateThread = false
-    @State private var collapseBanner = true
     
     private var pageSize: Int { settings.pageSize }
     private var totalPages: Int { (threads.count + pageSize - 1) / pageSize }
@@ -54,24 +53,8 @@ struct ThreadsView: View {
                     .buttonStyle(.bordered)
                 }
                 .padding()
-            } else {
-                List {
-                    if let bannerURL = board.bannerURL, !settings.isBannerHidden(board.code) {
-                        Section {
-                            if !collapseBanner {
-                                BannerRow(url: bannerURL)
-                            }
-                        } header: {
-                            HStack {
-                                Text("Баннер")
-                                Spacer()
-                                Button(collapseBanner ? "Показать" : "Скрыть") {
-                                    withAnimation(.easeInOut(duration: 0.2)) { collapseBanner.toggle() }
-                                }
-                            }
-                        }
-                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-                    }
+                            } else {
+                    List {
                         ForEach(settings.enablePagination ? currentThreads : threads) { thread in
                             NavigationLink(destination: ThreadDetailView(board: board, thread: thread)
                                 .environmentObject(settings)
@@ -154,16 +137,6 @@ struct ThreadsView: View {
                 }
             }
         }
-    }
-}
-
-struct BannerRow: View {
-    let url: String
-    
-    var body: some View {
-        AsyncImageView(url: url, placeholder: Image(systemName: "photo"), contentMode: .fit, dynamic: true, maxDynamicHeight: 180)
-            .frame(maxWidth: .infinity)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
 

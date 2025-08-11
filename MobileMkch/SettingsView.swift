@@ -266,13 +266,6 @@ struct SettingsView: View {
                     }
                 }
                 
-                Section("Баннеры") {
-                    NavigationLink("Управление баннерами") {
-                        BannerVisibilityView()
-                            .environmentObject(apiClient)
-                    }
-                }
-                
                 Section("Управление кэшем") {
                     Button(action: {
                         Cache.shared.delete("boards")
@@ -642,67 +635,6 @@ struct UnstableFeaturesWarningView: View {
             } else {
                 canConfirm = true
                 timer.invalidate()
-            }
-        }
-    }
-}
-
-struct BannerVisibilityView: View {
-    @EnvironmentObject var settings: Settings
-    @EnvironmentObject var apiClient: APIClient
-    @State private var boards: [Board] = []
-    @State private var errorMessage: String?
-    @State private var isLoading = false
-    
-    var body: some View {
-        List {
-            if isLoading {
-                HStack {
-                    ProgressView()
-                    Text("Загрузка...").foregroundColor(.secondary)
-                }
-            } else if let error = errorMessage {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Ошибка загрузки").foregroundColor(.red)
-                    Text(error).font(.caption).foregroundColor(.secondary)
-                    Button("Повторить") { loadBoards() }.buttonStyle(.bordered)
-                }
-            } else {
-                ForEach(boards) { board in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text("/\(board.code)/")
-                            Text(board.description).font(.caption).foregroundColor(.secondary).lineLimit(1)
-                        }
-                        Spacer()
-                        Toggle("", isOn: Binding(
-                            get: { !settings.isBannerHidden(board.code) },
-                            set: { newValue in
-                                settings.setBannerVisible(board.code, visible: newValue)
-                            }
-                        ))
-                        .labelsHidden()
-                    }
-                }
-            }
-        }
-        .navigationTitle("Баннеры")
-        .navigationBarTitleDisplayMode(.inline)
-        .onAppear { if boards.isEmpty { loadBoards() } }
-    }
-    
-    private func loadBoards() {
-        isLoading = true
-        errorMessage = nil
-        apiClient.getBoards(forceReload: true) { result in
-            DispatchQueue.main.async {
-                self.isLoading = false
-                switch result {
-                case .success(let b):
-                    self.boards = b
-                case .failure(let e):
-                    self.errorMessage = e.localizedDescription
-                }
             }
         }
     }
