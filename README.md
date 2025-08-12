@@ -1,4 +1,4 @@
-# MobileMkch iOS [АРХИВИРОВАНО]
+# MobileMkch iOS
 
 Нативный iOS клиент для борды mkch.pooziqo.xyz
 
