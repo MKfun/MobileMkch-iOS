@@ -1,5 +1,7 @@
 import Foundation
 import Network
+import CryptoKit
+import Combine
 
 struct UploadFile {
     let name: String
@@ -29,6 +31,10 @@ class APIClient: ObservableObject {
     private var authKey: String = ""
     private var passcode: String = ""
     private let userAgent = "MobileMkch/2.1.1-ios-alpha"
+    private var isPowValid: Bool = false
+    @Published var powSolving: Bool = false
+    @Published var powProgress: Double = 0
+    private var powCancelRequested: Bool = false
     
     func authenticate(authKey: String, completion: @escaping (Error?) -> Void) {
         self.authKey = authKey
@@ -462,7 +468,13 @@ class APIClient: ObservableObject {
                 self.performCreateThread(boardCode: boardCode, title: title, text: text, files: files, completion: completion)
             }
         } else {
-            performCreateThread(boardCode: boardCode, title: title, text: text, files: files, completion: completion)
+            self.ensurePowValidated { powError in
+                if let powError = powError {
+                    completion(powError)
+                    return
+                }
+                self.performCreateThread(boardCode: boardCode, title: title, text: text, files: files, completion: completion)
+            }
         }
     }
     
@@ -556,7 +568,13 @@ class APIClient: ObservableObject {
                 self.performAddComment(boardCode: boardCode, threadId: threadId, text: text, files: files, completion: completion)
             }
         } else {
-            performAddComment(boardCode: boardCode, threadId: threadId, text: text, files: files, completion: completion)
+            self.ensurePowValidated { powError in
+                if let powError = powError {
+                    completion(powError)
+                    return
+                }
+                self.performAddComment(boardCode: boardCode, threadId: threadId, text: text, files: files, completion: completion)
+            }
         }
     }
     
@@ -670,6 +688,145 @@ class APIClient: ObservableObject {
         }
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
         return body
+    }
+
+    private struct PoWChallengeDTO: Codable { let challenge: String; let difficulty: Int }
+
+    private func ensurePowValidated(completion: @escaping (Error?) -> Void) {
+        if isPowValid { completion(nil); return }
+        powCancelRequested = false
+        powSolving = true
+        powProgress = 0
+        getPowChallenge { result in
+            switch result {
+            case .failure(let e): completion(e)
+            case .success(let dto):
+                self.solvePow(challenge: dto.challenge, difficulty: dto.difficulty) { solveResult in
+                    switch solveResult {
+                    case .failure(let e): completion(e)
+                    case .success(let solution):
+                        self.validatePow(challenge: dto.challenge, nonce: solution.nonce, response: solution.response, elapsed: solution.elapsed) { valError in
+                            if valError == nil { self.isPowValid = true }
+                            self.powSolving = false
+                            self.powProgress = valError == nil ? 1.0 : 0.0
+                            completion(valError)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func getPowChallenge(completion: @escaping (Result<PoWChallengeDTO, Error>) -> Void) {
+        let url = URL(string: "\(baseURL)/pow/challenge/")!
+        var request = URLRequest(url: url)
+        request.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
+        session.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error { completion(.failure(error)); return }
+                guard let http = response as? HTTPURLResponse, http.statusCode == 200, let data = data else {
+                    completion(.failure(APIError(message: "PoW challenge error", code: 0)))
+                    return
+                }
+                do {
+                    let dto = try JSONDecoder().decode(PoWChallengeDTO.self, from: data)
+                    completion(.success(dto))
+                } catch { completion(.failure(error)) }
+            }
+        }.resume()
+    }
+
+    private func sha256Hex(_ string: String) -> String {
+        let data = Data(string.utf8)
+        let digest = SHA256.hash(data: data)
+        return digest.compactMap { String(format: "%02x", $0) }.joined()
+    }
+
+    private func solvePow(challenge: String, difficulty: Int, completion: @escaping (Result<(nonce: String, response: String, elapsed: Double), Error>) -> Void) {
+        let targetPrefix = String(repeating: "0", count: difficulty)
+        let start = Date()
+        DispatchQueue.global(qos: .userInitiated).async {
+            var counter: UInt64 = 0
+            var responseHex = ""
+            var nonceFound = ""
+            var lastProgressTick: UInt64 = 0
+            while true {
+                if self.powCancelRequested {
+                    break
+                }
+                let nonce = String(counter)
+                let resp = self.sha256Hex("\(challenge)\(nonce)")
+                if resp.hasPrefix(targetPrefix) {
+                    responseHex = resp
+                    nonceFound = nonce
+                    break
+                }
+                counter &+= 1
+                if counter % 50000 == 0 {
+                    if Date().timeIntervalSince(start) > 60 {
+                        break
+                    }
+                }
+                if counter - lastProgressTick >= 20000 {
+                    lastProgressTick = counter
+                    let elapsed = Date().timeIntervalSince(start)
+                    var p = min(0.9, elapsed / 60.0)
+                    if p.isNaN || p.isInfinite { p = 0 }
+                    DispatchQueue.main.async { self.powProgress = p }
+                }
+            }
+            let elapsed = Date().timeIntervalSince(start)
+            DispatchQueue.main.async {
+                if self.powCancelRequested {
+                    self.powSolving = false
+                    self.powProgress = 0
+                    completion(.failure(APIError(message: "PoW canceled", code: 0)))
+                } else if nonceFound.isEmpty {
+                    self.powSolving = false
+                    self.powProgress = 0
+                    completion(.failure(APIError(message: "PoW timeout", code: 0)))
+                } else {
+                    completion(.success((nonce: nonceFound, response: responseHex, elapsed: elapsed)))
+                }
+            }
+        }
+    }
+
+    func cancelPow() {
+        powCancelRequested = true
+    }
+
+    private func validatePow(challenge: String, nonce: String, response: String, elapsed: Double, completion: @escaping (Error?) -> Void) {
+        let url = URL(string: "\(baseURL)/pow/validate/")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
+        let payload: [String: Any] = [
+            "challenge": challenge,
+            "nonce": nonce,
+            "response": response,
+            "elapsedTime": elapsed,
+            "meta": [
+                "hasWorkers": false,
+                "hasCrypto": true,
+                "threads": 1,
+                "mode": "single",
+                "reason": "ios"
+            ]
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: payload, options: [])
+        session.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let error = error { completion(error); return }
+                guard let http = response as? HTTPURLResponse else { completion(APIError(message: "PoW validate error", code: 0)); return }
+                if (200...299).contains(http.statusCode) {
+                    completion(nil)
+                } else {
+                    completion(APIError(message: "PoW invalid", code: http.statusCode))
+                }
+            }
+        }.resume()
     }
 
     func checkNewThreads(forBoard boardCode: String, lastKnownThreadId: Int, completion: @escaping (Result<[Thread], Error>) -> Void) {

@@ -144,6 +144,23 @@ struct CreateThreadView: View {
                 }
                 
                 VStack(spacing: 12) {
+                    if apiClient.powSolving {
+                        VStack(spacing: 8) {
+                            ProgressView(value: apiClient.powProgress)
+                                .progressViewStyle(.linear)
+                            HStack {
+                                Text("Решение PoW…")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Button("Отменить") {
+                                    apiClient.cancelPow()
+                                }
+                                .font(.caption)
+                            }
+                        }
+                        .padding(.horizontal, 4)
+                    }
                     Button(action: createThread) {
                         HStack {
                             if isLoading {
