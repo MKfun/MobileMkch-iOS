@@ -18,8 +18,12 @@ class APIClient: ObservableObject {
         config.httpAdditionalHeaders = [
             "Accept": "application/json",
             "Accept-Language": Locale.preferredLanguages.first ?? "ru-RU",
-            "User-Agent": self.userAgent
+            "User-Agent": self.userAgent,
+            "X-Requested-With": "XMLHttpRequest"
         ]
+        config.httpCookieStorage = .shared
+        config.httpCookieAcceptPolicy = .always
+        config.httpShouldSetCookies = true
         return URLSession(configuration: config)
     }()
     private var authKey: String = ""
@@ -60,18 +64,22 @@ class APIClient: ObservableObject {
                     return
                 }
                 
-                var formData = URLComponents()
-                formData.queryItems = [
-                    URLQueryItem(name: "csrfmiddlewaretoken", value: csrfToken),
-                    URLQueryItem(name: "key", value: authKey)
-                ]
-                
+                let boundary = "Boundary-\(UUID().uuidString)"
                 var postRequest = URLRequest(url: url)
                 postRequest.httpMethod = "POST"
-                postRequest.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+                postRequest.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
                 postRequest.setValue("\(self.baseURL)/key/auth/", forHTTPHeaderField: "Referer")
                 postRequest.setValue(self.userAgent, forHTTPHeaderField: "User-Agent")
-                postRequest.httpBody = formData.query?.data(using: .utf8)
+                var body = Data()
+                let prefix = "--\(boundary)\r\n"
+                body.append(prefix.data(using: .utf8)!)
+                body.append("Content-Disposition: form-data; name=\"csrfmiddlewaretoken\"\r\n\r\n".data(using: .utf8)!)
+                body.append("\(csrfToken)\r\n".data(using: .utf8)!)
+                body.append(prefix.data(using: .utf8)!)
+                body.append("Content-Disposition: form-data; name=\"key\"\r\n\r\n".data(using: .utf8)!)
+                body.append("\(authKey)\r\n".data(using: .utf8)!)
+                body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+                postRequest.httpBody = body
                 
                 self.session.dataTask(with: postRequest) { _, postResponse, postError in
                     DispatchQueue.main.async {

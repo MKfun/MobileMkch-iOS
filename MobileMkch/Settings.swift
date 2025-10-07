@@ -112,6 +112,14 @@ class Settings: ObservableObject {
         notificationInterval = 300
         favoriteThreads = []
         offlineMode = false
+        let cookieStorage = HTTPCookieStorage.shared
+        cookieStorage.removeCookies(since: Date.distantPast)
+        if let cookies = cookieStorage.cookies {
+            for cookie in cookies {
+                cookieStorage.deleteCookie(cookie)
+            }
+        }
+        URLCache.shared.removeAllCachedResponses()
         saveSettings()
     }
     
