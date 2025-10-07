@@ -7,7 +7,8 @@
 ![Swift](https://img.shields.io/badge/Swift-5-orange)
 
 ## Скриншоты
-![screenshots](https://git.fuckyougoogle.xyz/MKFun/MobileMkch-iOS/raw/branch/main/screenshot/screenshot.png)
+
+![screenshots](https://github.com/mkfun/MobileMkch-iOS/raw/main/screenshot/screenshot.png)
 
 ## Основные возможности
 
