@@ -36,6 +36,14 @@ class APIClient: ObservableObject {
     @Published var powProgress: Double = 0
     private var powCancelRequested: Bool = false
     
+    private func sortThreads(_ threads: [Thread]) -> [Thread] {
+        return threads.sorted { a, b in
+            if a.isPinned != b.isPinned { return a.isPinned && !b.isPinned }
+            if a.ratingValue != b.ratingValue { return a.ratingValue > b.ratingValue }
+            return a.creationDate > b.creationDate
+        }
+    }
+    
     func authenticate(authKey: String, completion: @escaping (Error?) -> Void) {
         self.authKey = authKey
         
@@ -235,14 +243,14 @@ class APIClient: ObservableObject {
     func getThreads(forBoard boardCode: String, completion: @escaping (Result<[Thread], Error>) -> Void) {
         if NetworkMonitor.shared.offlineEffective {
             if let stale = Cache.shared.getThreadsStale(forBoard: boardCode), !stale.isEmpty {
-                completion(.success(stale))
+                completion(.success(self.sortThreads(stale)))
             } else {
                 completion(.failure(APIError(message: "Оффлайн: нет сохранённых тредов", code: 0)))
             }
             return
         }
         if let cachedThreads = Cache.shared.getThreads(forBoard: boardCode) {
-            completion(.success(cachedThreads))
+            completion(.success(self.sortThreads(cachedThreads)))
             return
         }
         
@@ -282,8 +290,9 @@ class APIClient: ObservableObject {
                 
                 do {
                     let threads = try JSONDecoder().decode([Thread].self, from: data)
-                    Cache.shared.setThreads(threads, forBoard: boardCode)
-                    completion(.success(threads))
+                    let sorted = self.sortThreads(threads)
+                    Cache.shared.setThreads(sorted, forBoard: boardCode)
+                    completion(.success(sorted))
                 } catch {
                     completion(.failure(error))
                 }
