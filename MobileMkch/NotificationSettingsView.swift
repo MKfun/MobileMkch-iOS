@@ -266,7 +266,7 @@ extension NotificationSettingsView {
             
             let url = URL(string: "https://mkch.pooziqo.xyz/api/board/\(boardCode)")!
             var request = URLRequest(url: url)
-            request.setValue("MobileMkch/2.1.1-ios-alpha", forHTTPHeaderField: "User-Agent")
+            request.setValue("MobileMkch/2.1.2-ios-alpha", forHTTPHeaderField: "User-Agent")
             
             URLSession.shared.dataTask(with: request) { data, response, error in
                 if let data = data,

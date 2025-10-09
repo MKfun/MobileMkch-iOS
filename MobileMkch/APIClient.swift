@@ -30,7 +30,7 @@ class APIClient: ObservableObject {
     }()
     private var authKey: String = ""
     private var passcode: String = ""
-    private let userAgent = "MobileMkch/2.1.1-ios-alpha"
+    private let userAgent = "MobileMkch/2.1.2-ios-alpha"
     private var isPowValid: Bool = false
     @Published var powSolving: Bool = false
     @Published var powProgress: Double = 0

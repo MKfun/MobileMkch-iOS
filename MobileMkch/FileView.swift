@@ -1,31 +1,56 @@
 import SwiftUI
+import AVKit
+import QuickLook
+import AVFoundation
 
 struct FileView: View {
     let fileInfo: FileInfo
     @State private var showingFullScreen = false
+    @State private var showVideoPlayer = false
+    @State private var showQuickLook = false
+    @State private var videoThumbnail: UIImage? = nil
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if fileInfo.isImage {
-                AsyncImageView(url: fileInfo.url, contentMode: .fit)
-                    .frame(maxHeight: 200)
-                    .clipped()
-                    .onTapGesture {
-                        showingFullScreen = true
-                    }
-            } else if fileInfo.isVideo {
-                VStack {
-                    Image(systemName: "play.rectangle")
-                        .font(.largeTitle)
-                        .foregroundColor(.gray)
-                    Text(fileInfo.filename)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                ZStack {
+                    AsyncImageView(url: fileInfo.url, contentMode: .fill, enableRetryTap: false)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 220)
+                        .clipped()
                 }
-                .frame(height: 100)
+                .contentShape(Rectangle())
+                .onTapGesture { showingFullScreen = true }
+            } else if fileInfo.isVideo {
+                ZStack {
+                    if let image = videoThumbnail {
+                        Image(uiImage: image)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(height: 160)
+                            .clipped()
+                    } else {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.1))
+                            .frame(height: 160)
+                            .overlay(
+                                ProgressView()
+                            )
+                    }
+                    Image(systemName: "play.circle.fill")
+                        .font(.system(size: 48))
+                        .foregroundColor(.white)
+                        .shadow(radius: 6)
+                }
                 .frame(maxWidth: .infinity)
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(8)
+                .cornerRadius(10)
+                .contentShape(Rectangle())
+                .onTapGesture { showVideoPlayer = true }
+                .task {
+                    if videoThumbnail == nil {
+                        videoThumbnail = await VideoThumbnailGenerator.shared.generateThumbnail(from: fileInfo.url)
+                    }
+                }
             } else {
                 HStack {
                     Image(systemName: "doc")
@@ -39,11 +64,23 @@ struct FileView: View {
                 .padding(.horizontal, 12)
                 .background(Color.gray.opacity(0.1))
                 .cornerRadius(8)
+                .contentShape(Rectangle())
+                .onTapGesture { showQuickLook = true }
             }
         }
         .fullScreenCover(isPresented: $showingFullScreen) {
             if fileInfo.isImage {
                 NativeFullScreenImageView(url: fileInfo.url)
+            }
+        }
+        .fullScreenCover(isPresented: $showVideoPlayer) {
+            if let url = URL(string: fileInfo.url) {
+                VideoPlayerFullScreenView(url: url)
+            }
+        }
+        .sheet(isPresented: $showQuickLook) {
+            if let url = URL(string: fileInfo.url) {
+                QuickLookPreview(url: url)
             }
         }
     }
@@ -59,13 +96,17 @@ struct NativeFullScreenImageView: View {
     @State private var dragOffset = CGSize.zero
     @State private var isDragging = false
     @State private var showUI = true
+    @State private var showSaveAlert = false
+    @State private var saveMessage = ""
     
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
             
             GeometryReader { geometry in
-                AsyncImageView(url: url, contentMode: .fit)
+                AsyncImageView(url: url, contentMode: .fit, enableRetryTap: false)
+                    .frame(width: geometry.size.width, height: geometry.size.height, alignment: .center)
+                    .clipped()
                     .scaleEffect(scale)
                     .offset(offset)
                     .opacity(isDragging ? 0.8 : 1.0)
@@ -150,13 +191,8 @@ struct NativeFullScreenImageView: View {
                         
                         Spacer()
                         
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                scale = 1
-                                offset = .zero
-                            }
-                        }) {
-                            Image(systemName: "arrow.counterclockwise")
+                        Button(action: { saveCurrentImage() }) {
+                            Image(systemName: "square.and.arrow.down")
                                 .font(.title2)
                                 .foregroundColor(.white)
                                 .padding(12)
@@ -172,6 +208,29 @@ struct NativeFullScreenImageView: View {
             }
         )
         .animation(.easeInOut(duration: 0.2), value: showUI)
+        .alert(isPresented: $showSaveAlert) {
+            Alert(title: Text(saveMessage))
+        }
+    }
+
+    private func saveCurrentImage() {
+        guard let imageURL = URL(string: url) else { return }
+        Task {
+            do {
+                let (data, _) = try await URLSession.shared.data(from: imageURL)
+                if let uiImage = UIImage(data: data) {
+                    UIImageWriteToSavedPhotosAlbum(uiImage, nil, nil, nil)
+                    saveMessage = "Сохранено в Фото"
+                    showSaveAlert = true
+                } else {
+                    saveMessage = "Не удалось сохранить"
+                    showSaveAlert = true
+                }
+            } catch {
+                saveMessage = "Ошибка сохранения"
+                showSaveAlert = true
+            }
+        }
     }
 }
 

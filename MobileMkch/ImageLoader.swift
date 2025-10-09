@@ -97,18 +97,20 @@ struct AsyncImageView: View {
     let url: String
     let placeholder: Image
     let contentMode: ContentMode
+    let enableRetryTap: Bool
     
     @StateObject private var loader: ImageLoader
     
-    init(url: String, placeholder: Image = Image(systemName: "photo"), contentMode: ContentMode = .fit) {
+    init(url: String, placeholder: Image = Image(systemName: "photo"), contentMode: ContentMode = .fit, enableRetryTap: Bool = true) {
         self.url = url
         self.placeholder = placeholder
         self.contentMode = contentMode
+        self.enableRetryTap = enableRetryTap
         self._loader = StateObject(wrappedValue: ImageLoader(url: url))
     }
     
     var body: some View {
-        Group {
+        let content = Group {
             if let image = loader.image {
                 Image(uiImage: image)
                     .resizable()
@@ -125,10 +127,15 @@ struct AsyncImageView: View {
                     .foregroundColor(.gray)
             }
         }
-        .onTapGesture {
-            if loader.error != nil {
-                loader.reload()
-            }
+        if enableRetryTap {
+            content
+                .onTapGesture {
+                    if loader.error != nil {
+                        loader.reload()
+                    }
+                }
+        } else {
+            content
         }
     }
 }
